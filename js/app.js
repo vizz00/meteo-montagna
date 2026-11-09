@@ -3,6 +3,8 @@ import { MODELS, rangeText, roundCm, compass, nextSnowfall } from './snow.js';
 import { loadForecast } from './forecast.js';
 import { loadPrefs, savePrefs } from './storage.js';
 import { renderAddPage } from './addplace.js';
+import { loadAvalanche, romeDate } from './avalanche.js';
+import { avalBadge, avalPlaceBlock, avalPage } from './avalanche-view.js';
 
 const app = document.getElementById('app');
 const refreshBtn = document.getElementById('refresh');
@@ -12,6 +14,8 @@ const state = {
   forecast: null,
   error: null,
   loading: false,
+  aval: null, // bollettini valanghe di oggi/domani
+  avalArchive: null, // { day, data } quando si guarda un giorno passato
 };
 
 // ---------- utilità ----------
@@ -81,7 +85,29 @@ function skyIcon(day) {
 
 // ---------- caricamento dati ----------
 
+async function refreshAvalanche(force = false) {
+  try {
+    state.aval = await loadAvalanche(PLACES, { force });
+  } catch (err) {
+    console.error(err);
+  }
+  render();
+}
+
+async function loadAvalancheArchive(day) {
+  state.avalArchive = { day, n: PLACES.length, data: null };
+  render();
+  try {
+    const data = await loadAvalanche(PLACES, { day });
+    if (state.avalArchive?.day === day) state.avalArchive = { ...state.avalArchive, data };
+  } catch (err) {
+    console.error(err);
+  }
+  render();
+}
+
 async function refresh(force = false) {
+  refreshAvalanche(force);
   state.loading = true;
   state.error = null;
   refreshBtn.classList.add('spinning');
@@ -186,7 +212,7 @@ function placeCard(place) {
       ${s ? s.days.map((d) => dayCell(place, d)).join('') : '<p class="muted">Dati non disponibili</p>'}
     </div>
     <footer class="place-foot">
-      <a class="badge-aval" href="${region.avalancheUrl}" target="_blank" rel="noopener">Valanghe: bollettino ${region.avalancheSource} ↗</a>
+      ${avalBadge(place, state.aval)}
       <span class="links">${externalLinks(place)
         .map((l) => `<a href="${l.url}" target="_blank" rel="noopener">${l.label}</a>`)
         .join('')}</span>
@@ -284,8 +310,9 @@ function renderDetail(id, params) {
     <div class="toolbar">${bandSwitch()}</div>
     ${table}
     <div class="notice placeholder">
-      <p><b>In arrivo</b>: grafico orario per modello con zero termico, vento e raffiche, nuvolosità; le tre quote affiancate; neve misurata e al suolo; grado valanghe della micro-zona sopra e sotto la quota limite.</p>
+      <p><b>In arrivo</b>: grafico orario per modello con zero termico, vento e raffiche, nuvolosità; le tre quote affiancate; neve misurata e al suolo.</p>
     </div>
+    ${avalPlaceBlock(place, state.aval)}
     <p class="links-row">${externalLinks(place)
       .map((l) => `<a class="btn ghost" href="${l.url}" target="_blank" rel="noopener">${l.label} ↗</a>`)
       .join('')}</p>`;
@@ -298,6 +325,23 @@ function renderPlaceholder(title, text, links = []) {
     <p class="links-row">${links
       .map((l) => `<a class="btn ghost" href="${l.url}" target="_blank" rel="noopener">${l.label} ↗</a>`)
       .join('')}</p>`;
+}
+
+function renderAvalanche(params) {
+  const today = romeDate();
+  const asked = params.get('giorno');
+  const archiveDay = asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) && asked !== today ? asked : null;
+  if (archiveDay && (state.avalArchive?.day !== archiveDay || state.avalArchive?.n !== PLACES.length)) loadAvalancheArchive(archiveDay);
+  const aval = archiveDay ? state.avalArchive?.data : state.aval;
+  const favs = PLACES.filter((p) => isFav(p.id));
+  const places = [...favs, ...PLACES.filter((p) => !isFav(p.id))];
+  app.innerHTML = avalPage({ places, aval, archiveDay, today });
+  // Dal badge della Panoramica: porta alla scheda del posto (una volta sola per indirizzo).
+  const focus = params.get('posto');
+  if (focus && aval && state.avalScrolled !== location.hash) {
+    state.avalScrolled = location.hash;
+    requestAnimationFrame(() => document.getElementById(`valanghe-${focus}`)?.scrollIntoView());
+  }
 }
 
 function renderNotFound() {
@@ -353,14 +397,7 @@ function render() {
         { label: 'RainViewer', url: 'https://www.rainviewer.com/map.html' },
       ]);
     case 'valanghe':
-      return renderPlaceholder(
-        'Valanghe',
-        'In arrivo: grado di pericolo ufficiale per micro-zona (sopra e sotto la quota limite) da EAWS per Valle d’Aosta, Piemonte, Lombardia e Svizzera, con link al bollettino. Nessuna interpretazione.',
-        [
-          { label: 'AINEVA', url: 'https://bollettini.aineva.it/' },
-          { label: 'SLF', url: 'https://www.slf.ch/it/bollettino-valanghe-e-situazione-nivologica/' },
-        ],
-      );
+      return renderAvalanche(r.params);
     case 'stagione':
       return renderPlaceholder(
         'Stagione',
@@ -378,6 +415,12 @@ app.addEventListener('click', (e) => {
   const fav = e.target.closest('[data-fav]');
   if (fav) return toggleFav(fav.dataset.fav);
   if (e.target.closest('[data-retry]')) return refresh(true);
+});
+app.addEventListener('submit', (e) => {
+  if (!e.target.matches('[data-aval-archive]')) return;
+  e.preventDefault();
+  const day = new FormData(e.target).get('giorno');
+  location.hash = day && day !== romeDate() ? `#/valanghe?giorno=${day}` : '#/valanghe';
 });
 app.addEventListener('change', (e) => {
   if (e.target.matches('[data-showall]')) setPrefs({ showAll: e.target.checked });

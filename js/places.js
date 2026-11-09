@@ -1,5 +1,7 @@
 // Posti iniziali e quote (dal brief di progetto, 9/11/2026).
 // Per aggiungere un posto basta aggiungere un oggetto a questa lista.
+// avalancheZone: micro-zona EAWS del bollettino valanghe (ricavata dai confini ufficiali
+// regions.avalanches.org nel punto lat/lon). Se manca, l'app la calcola da lat/lon.
 export const PLACES = [
   {
     id: 'cervinia',
@@ -9,6 +11,8 @@ export const PLACES = [
     elevations: { valle: 2050, meta: 2800, cima: 3480 },
     cimaLabel: 'Plateau Rosa',
     region: 'IT-23',
+    avalancheZone: 'IT-23-AO-20',
+    avalancheZoneName: 'D - Cervinia e alta Valpelline',
   },
   {
     id: 'champoluc',
@@ -17,6 +21,8 @@ export const PLACES = [
     lon: 7.727,
     elevations: { valle: 1570, meta: 2400, cima: 3000 },
     region: 'IT-23',
+    avalancheZone: 'IT-23-AO-07',
+    avalancheZoneName: "B - Media Val d'Ayas Brusson",
   },
   {
     id: 'alagna',
@@ -26,6 +32,8 @@ export const PLACES = [
     elevations: { valle: 1190, meta: 2200, cima: 3275 },
     cimaLabel: 'Punta Indren',
     region: 'IT-21',
+    avalancheZone: 'IT-21-VB-01',
+    avalancheZoneName: 'Alpi Pennine di confine',
   },
 ];
 
