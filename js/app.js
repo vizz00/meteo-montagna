@@ -221,12 +221,12 @@ refreshBtn.addEventListener('click', () => refresh(true));
 
 // ---------- schermate ----------
 
-function bandSwitch() {
-  return `<div class="segmented" role="radiogroup" aria-label="Quota">
-    ${BANDS.map(
-      (b) =>
-        `<button type="button" role="radio" aria-checked="${state.prefs.band === b.id}" data-band="${b.id}">${b.label}</button>`,
-    ).join('')}
+function bandSwitch(place) {
+  return `<div class="segmented bands" role="radiogroup" aria-label="Quota">
+    ${BANDS.map((b) => {
+      const label = b.id === 'cima' && place.cimaLabel ? esc(place.cimaLabel) : b.label;
+      return `<button type="button" role="radio" aria-checked="${state.prefs.band === b.id}" data-band="${b.id}"><span>${label}</span><small>${place.elevations[b.id]} m</small></button>`;
+    }).join('')}
   </div>`;
 }
 
@@ -306,7 +306,7 @@ function snowCard(place, { detail = false } = {}) {
         <span class="sc-bar" style="height:${h}px;background:${cm >= 0.5 ? snowColor(cm) : 'var(--line)'}"></span>
         <span class="sc-wd ${isWeekend(d.date) ? 'we' : ''}">${DAY_LETTER[dayDate(d.date).getDay()]}</span>
         <span class="sc-dn ${isWeekend(d.date) ? 'we' : ''}">${dayNum(d.date)}</span>
-        ${detail ? `<span class="pw pw-${p?.level || 'nd'}" title="Polvere: ${p?.label || 'n.d.'}"></span>` : ''}
+        ${detail ? `<span class="pw ${p && p.level !== 'no' ? `pw-${p.level}` : 'pw-vuota'}"${p && p.level !== 'no' ? ` title="Polvere: ${p.label}"` : ''}></span>` : ''}
       </a>`;
     })
     .join('');
@@ -323,7 +323,7 @@ function snowCard(place, { detail = false } = {}) {
           <span><span class="sc-k">6-10 giorni</span><b title="${t.d6_10 ? `${rangeText(t.d6_10)} cm tra i modelli` : ''}">${cmText(t.d6_10?.median)} cm</b></span>
         </div>
         <div class="sc-days">${cols}</div>
-        ${detail ? `<p class="pw-legend"><span class="pw-k">Polvere</span><span class="pw pw-ottima"></span>ottima <span class="pw pw-buona"></span>buona <span class="pw pw-discreta"></span>discreta <span class="pw pw-no"></span>niente</p>` : ''}
+        ${detail ? `<p class="pw-legend"><span class="pw-k">Polvere</span><span class="pw pw-ottima"></span>ottima <span class="pw pw-buona"></span>buona <span class="pw pw-discreta"></span>discreta</p>` : ''}
       </div>
     </div>
   </article>`;
@@ -338,11 +338,11 @@ function dayIcon(day) {
   const k = snow ? 'neve' : rain ? 'pioggia' : c == null ? 'nd' : c < 30 ? 'sereno' : c < 70 ? 'variabile' : 'coperto';
   const cloud = (fill, dy = 0) => `<path d="M6 ${16 + dy}h12a4 4 0 0 0 0-8 6 6 0 0 0-11.5 2A3 3 0 0 0 6 ${16 + dy}z" fill="${fill}"/>`;
   const shapes = {
-    sereno: '<circle cx="12" cy="12" r="5" fill="#ffd166"/>',
-    variabile: '<circle cx="9" cy="9" r="4" fill="#ffd166"/><path d="M7 19h10a4 4 0 0 0 0-8 5 5 0 0 0-9.6 1.5A3.3 3.3 0 0 0 7 19z" fill="#c7d2ea"/>',
+    sereno: '<circle cx="12" cy="12" r="4" fill="#ffd166"/><path d="M18.8 12.0L22.0 12.0M16.8 16.8L19.1 19.1M12.0 18.8L12.0 22.0M7.2 16.8L4.9 19.1M5.2 12.0L2.0 12.0M7.2 7.2L4.9 4.9M12.0 5.2L12.0 2.0M16.8 7.2L19.1 4.9" stroke="#ffd166" stroke-width="1.8" stroke-linecap="round" fill="none"/>',
+    variabile: '<circle cx="8.5" cy="8.5" r="3" fill="#ffd166"/><path d="M13.5 8.5L15.7 8.5M12.0 12.0L13.6 13.6M8.5 13.5L8.5 15.7M5.0 12.0L3.4 13.6M3.5 8.5L1.3 8.5M5.0 5.0L3.4 3.4M8.5 3.5L8.5 1.3M12.0 5.0L13.6 3.4" stroke="#ffd166" stroke-width="1.8" stroke-linecap="round" fill="none"/><path d="M7 19h10a4 4 0 0 0 0-8 5 5 0 0 0-9.6 1.5A3.3 3.3 0 0 0 7 19z" fill="#c7d2ea"/>',
     coperto: cloud('#8b98b8', 2),
-    neve: `${cloud('#8b98b8', -2)}<g fill="#9fd0ff"><circle cx="8" cy="19" r="1.5"/><circle cx="12" cy="21" r="1.5"/><circle cx="16" cy="19" r="1.5"/></g>`,
-    pioggia: `${cloud('#8b98b8', -2)}<path d="M8 17l-1 4M12 17l-1 4M16 17l-1 4" stroke="#7fd6a4" stroke-width="1.6" stroke-linecap="round"/>`,
+    neve: `<g style="color:#9fd0ff">${ICON.snow}</g>`,
+    pioggia: '<path d="M12 3c3.5 4.6 6 8 6 11a6 6 0 0 1-12 0c0-3 2.5-6.4 6-11z" fill="#7fd6a4"/>',
     nd: '',
   };
   const label = `${k}${windy ? ', vento forte' : ''}`;
@@ -533,14 +533,10 @@ function renderDetail(id, params) {
       <h1 class="page-title">${esc(place.name)}</h1>
       ${favButton(place)}
     </div>
-    <p class="place-sub">${
-      place.single
-        ? `Quota ${place.elevations.valle} m`
-        : `Valle ${place.elevations.valle} m · Metà ${place.elevations.meta} m · Cima ${place.elevations.cima} m${
-            place.cimaLabel ? ` (${esc(place.cimaLabel)})` : ''
-          }`
-    }${place.custom ? ` · <a href="#/aggiungi?modifica=${place.id}">Modifica</a>` : ''}</p>
-    ${place.single ? '' : `<div class="toolbar">${bandSwitch()}</div>`}
+    ${place.single || place.custom ? `<p class="place-sub">${place.single ? `Quota ${place.elevations.valle} m` : ''}${
+      place.custom ? `${place.single ? ' · ' : ''}<a href="#/aggiungi?modifica=${place.id}">Modifica</a>` : ''
+    }</p>` : ''}
+    ${place.single ? '' : `<div class="toolbar">${bandSwitch(place)}</div>`}
     <div class="detail-card">${card.replace(/<header[\s\S]*?<\/header>/, '').replace(/<footer[\s\S]*<\/footer>/, '')}</div>
     ${chartBlock(place, band)}
     ${windowSection(place, band, params.get('giorno'))}
