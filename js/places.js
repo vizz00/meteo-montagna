@@ -13,6 +13,7 @@ export const PLACES = [
     region: 'IT-23',
     avalancheZone: 'IT-23-AO-20',
     avalancheZoneName: 'D - Cervinia e alta Valpelline',
+    wepowder: 'breuil-cervinia#testa-grigia',
   },
   {
     id: 'champoluc',
@@ -23,6 +24,7 @@ export const PLACES = [
     region: 'IT-23',
     avalancheZone: 'IT-23-AO-07',
     avalancheZoneName: "B - Media Val d'Ayas Brusson",
+    wepowder: 'champoluc#bettaforca',
   },
   {
     id: 'alagna',
@@ -34,6 +36,7 @@ export const PLACES = [
     region: 'IT-21',
     avalancheZone: 'IT-21-VB-01',
     avalancheZoneName: 'Alpi Pennine di confine',
+    wepowder: 'alagna-valsesia#punta-indren',
   },
 ];
 
@@ -56,7 +59,7 @@ export function externalLinks(place) {
   return [
     { label: 'Meteoblue', url: `https://www.meteoblue.com/it/tempo/settimana/${lat.toFixed(3)}N${lon.toFixed(3)}E` },
     { label: 'Windy', url: `https://www.windy.com/${lat}/${lon}?${lat},${lon},11` },
-    { label: 'WePowder', url: 'https://wepowder.com/' },
-    { label: 'OpenSnow', url: 'https://opensnow.com/' },
+    // Pagina WePowder della località se nota, altrimenti la mappa delle previsioni.
+    { label: 'WePowder', url: place.wepowder ? `https://wepowder.com/en/villages/${place.wepowder}` : 'https://wepowder.com/en/forecast' },
   ];
 }

@@ -5,6 +5,7 @@ const DEFAULTS = {
   favorites: ['cervinia', 'champoluc', 'alagna'],
   band: 'meta',
   showAll: false,
+  aspects: {}, // versanti scelti per posto: { [id]: ['N', 'NE'] }
 };
 
 export function loadPrefs() {
