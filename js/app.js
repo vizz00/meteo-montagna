@@ -2,6 +2,7 @@ import { PLACES, BANDS, REGIONS, externalLinks } from './places.js';
 import { MODELS, rangeText, roundCm, compass, nextSnowfall } from './snow.js';
 import { loadForecast } from './forecast.js';
 import { loadPrefs, savePrefs } from './storage.js';
+import { mountRadar, unmountRadar } from './radar.js';
 import { renderAddPage } from './addplace.js';
 import { keepPlace } from './myplaces.js';
 import { loadAvalanche, romeDate } from './avalanche.js';
@@ -402,6 +403,10 @@ function render() {
     else a.removeAttribute('aria-current');
   });
 
+  // Il radar occupa tutto lo schermo; quando si cambia scheda la mappa viene chiusa.
+  document.body.classList.toggle('radar-mode', r.tab === 'radar');
+  if (r.tab !== 'radar') unmountRadar();
+
   switch (r.tab) {
     case 'panoramica':
       return renderOverview();
@@ -410,10 +415,7 @@ function render() {
     case 'aggiungi':
       return renderAddPage(app, r.params, { onSaved: placeSaved, onDeleted: placeDeleted });
     case 'radar':
-      return renderPlaceholder('Radar', 'In arrivo: radar animato RainViewer con i posti preferiti sulla mappa e barra del tempo.', [
-        { label: 'Radar MeteoSwiss', url: 'https://www.meteosvizzera.admin.ch/' },
-        { label: 'RainViewer', url: 'https://www.rainviewer.com/map.html' },
-      ]);
+      return mountRadar(app, { places: PLACES, favorites: state.prefs.favorites });
     case 'valanghe':
       return renderAvalanche(r.params);
     case 'stagione':
