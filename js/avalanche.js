@@ -50,9 +50,14 @@ export function romeDate(date = new Date(), addDays = 0) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 }
 
-export function bulletinUrl(day, region) {
-  return `${BULLETIN_BASE}/${day}/${day}-${region}.it.json`;
+// lang 'it' esiste per AINEVA, SLF e altri; alcuni servizi (es. Francia) hanno solo il file senza lingua.
+export function bulletinUrl(day, region, lang = 'it') {
+  return `${BULLETIN_BASE}/${day}/${day}-${region}${lang ? `.${lang}` : ''}.json`;
 }
+
+// Codici dei servizi EAWS quando differiscono da quello della regione salvata nel posto.
+const PROVIDER_ALIAS = { DE: 'DE-BY' };
+export const providerCode = (region) => PROVIDER_ALIAS[region] || region;
 
 // ---------- lettura del bollettino ----------
 
@@ -217,7 +222,14 @@ export async function zoneForPoint(lat, lon, region) {
   const cacheKey = `${region}:${lat.toFixed(4)},${lon.toFixed(4)}`;
   const cache = readStore(ZONE_CACHE_KEY) || {};
   if (cache[cacheKey]) return cache[cacheKey];
-  const geo = await getJson(`${REGIONS_BASE}/micro-regions/${region}_micro-regions.geojson.json`);
+  if (!region || region === 'ALTRO') return null;
+  let geo = null;
+  try {
+    geo = await getJson(`${REGIONS_BASE}/micro-regions/${providerCode(region)}_micro-regions.geojson.json`);
+  } catch (err) {
+    console.warn(err); // zona non coperta da EAWS
+    return null;
+  }
   const id = geo ? zoneInGeojson(geo, lat, lon) : null;
   if (!id) return null;
   let name = null;
@@ -252,7 +264,10 @@ export async function loadAvalanche(places, { force = false, day = null } = {}) 
   const files = new Map(); // `${giorno}|${regione}` -> json | null
   const file = (d, region) => {
     const k = `${d}|${region}`;
-    if (!files.has(k)) files.set(k, getJsonFresh(bulletinUrl(d, region)));
+    if (!files.has(k)) {
+      const code = providerCode(region);
+      files.set(k, getJsonFresh(bulletinUrl(d, code)).then((j) => j ?? getJsonFresh(bulletinUrl(d, code, ''))));
+    }
     return files.get(k);
   };
 

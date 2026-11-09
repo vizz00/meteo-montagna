@@ -95,11 +95,11 @@ async function refreshAvalanche(force = false) {
 }
 
 async function loadAvalancheArchive(day) {
-  state.avalArchive = { day, data: null };
+  state.avalArchive = { day, n: PLACES.length, data: null };
   render();
   try {
     const data = await loadAvalanche(PLACES, { day });
-    if (state.avalArchive?.day === day) state.avalArchive = { day, data };
+    if (state.avalArchive?.day === day) state.avalArchive = { ...state.avalArchive, data };
   } catch (err) {
     console.error(err);
   }
@@ -331,7 +331,7 @@ function renderAvalanche(params) {
   const today = romeDate();
   const asked = params.get('giorno');
   const archiveDay = asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) && asked !== today ? asked : null;
-  if (archiveDay && state.avalArchive?.day !== archiveDay) loadAvalancheArchive(archiveDay);
+  if (archiveDay && (state.avalArchive?.day !== archiveDay || state.avalArchive?.n !== PLACES.length)) loadAvalancheArchive(archiveDay);
   const aval = archiveDay ? state.avalArchive?.data : state.aval;
   const favs = PLACES.filter((p) => isFav(p.id));
   const places = [...favs, ...PLACES.filter((p) => !isFav(p.id))];
