@@ -2,6 +2,7 @@ import { PLACES, BANDS, REGIONS, externalLinks } from './places.js';
 import { MODELS, rangeText, roundCm, compass, nextSnowfall } from './snow.js';
 import { loadForecast } from './forecast.js';
 import { loadPrefs, savePrefs } from './storage.js';
+import { renderAddPage } from './addplace.js';
 
 const app = document.getElementById('app');
 const refreshBtn = document.getElementById('refresh');
@@ -217,6 +218,7 @@ function renderOverview() {
   app.innerHTML = `
     <div class="toolbar">
       ${bandSwitch()}
+      <a class="btn ghost add-place" href="#/aggiungi">+ Aggiungi posto</a>
       <label class="toggle"><input type="checkbox" data-showall ${showAll ? 'checked' : ''} ${favs.length ? '' : 'disabled'}> Mostra anche i non preferiti</label>
     </div>
     ${status}
@@ -278,7 +280,7 @@ function renderDetail(id, params) {
     <h1 class="page-title">${esc(place.name)}</h1>
     <p class="place-sub">Valle ${place.elevations.valle} m · Metà ${place.elevations.meta} m · Cima ${place.elevations.cima} m${
       place.cimaLabel ? ` (${esc(place.cimaLabel)})` : ''
-    }</p>
+    }${place.custom ? ` · <a href="#/aggiungi?modifica=${place.id}">Modifica</a>` : ''}</p>
     <div class="toolbar">${bandSwitch()}</div>
     ${table}
     <div class="notice placeholder">
@@ -302,6 +304,23 @@ function renderNotFound() {
   app.innerHTML = `<h1 class="page-title">Pagina non trovata</h1><p><a href="#/">Torna alla panoramica</a></p>`;
 }
 
+// Posti aggiunti dall'utente (js/myplaces.js li inserisce in PLACES).
+function placeSaved(place) {
+  if (!isFav(place.id)) {
+    state.prefs = { ...state.prefs, favorites: [...state.prefs.favorites, place.id] };
+    savePrefs(state.prefs);
+  }
+  location.hash = `#/posto/${place.id}`;
+  refresh(false);
+}
+
+function placeDeleted(id) {
+  state.prefs = { ...state.prefs, favorites: state.prefs.favorites.filter((f) => f !== id) };
+  savePrefs(state.prefs);
+  location.hash = '#/';
+  refresh(false);
+}
+
 // ---------- router ----------
 
 function route() {
@@ -315,7 +334,7 @@ function route() {
 function render() {
   const r = route();
   document.querySelectorAll('.tabbar a').forEach((a) => {
-    const active = a.dataset.tab === (r.tab === 'posto' ? 'panoramica' : r.tab);
+    const active = a.dataset.tab === (r.tab === 'posto' || r.tab === 'aggiungi' ? 'panoramica' : r.tab);
     a.classList.toggle('active', active);
     if (active) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
@@ -326,6 +345,8 @@ function render() {
       return renderOverview();
     case 'posto':
       return renderDetail(r.id, r.params);
+    case 'aggiungi':
+      return renderAddPage(app, r.params, { onSaved: placeSaved, onDeleted: placeDeleted });
     case 'radar':
       return renderPlaceholder('Radar', 'In arrivo: radar animato RainViewer con i posti preferiti sulla mappa e barra del tempo.', [
         { label: 'Radar MeteoSwiss', url: 'https://www.meteosvizzera.admin.ch/' },
