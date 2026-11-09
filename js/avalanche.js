@@ -55,6 +55,19 @@ export function bulletinUrl(day, region, lang = 'it') {
   return `${BULLETIN_BASE}/${day}/${day}-${region}${lang ? `.${lang}` : ''}.json`;
 }
 
+// Cartine ufficiali AINEVA (immagini pubblicate col bollettino, stesse del sito bollettini.aineva.it).
+// fd = giorno intero; am/pm = mattino/pomeriggio quando il bollettino li separa.
+const AINEVA_FILES = 'https://bollettini.aineva.it/albina_files';
+export const AINEVA_REGIONS = ['IT-21', 'IT-23', 'IT-25', 'IT-32-BZ', 'IT-32-TN', 'IT-34', 'IT-36', 'IT-57'];
+export const isAineva = (region) => AINEVA_REGIONS.includes(region);
+export function ainevaMapUrl(day, region, period = 'fd', ext = 'webp') {
+  return `${AINEVA_FILES}/${day}/${period}_${region}_map.${ext}`;
+}
+// Cartina della singola area del bollettino (la zona del posto e quelle con lo stesso grado).
+export function ainevaBulletinMapUrl(day, region, bulletinId, ext = 'webp') {
+  return `${AINEVA_FILES}/${day}/${region}_${bulletinId}.${ext}`;
+}
+
 // Codici dei servizi EAWS quando differiscono da quello della regione salvata nel posto.
 const PROVIDER_ALIAS = { DE: 'DE-BY' };
 export const providerCode = (region) => PROVIDER_ALIAS[region] || region;

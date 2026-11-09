@@ -1,6 +1,6 @@
 // Pezzi di pagina per il pericolo valanghe (badge nella Panoramica, blocco nel dettaglio,
 // schermata Valanghe). Mostrano solo i valori ufficiali del bollettino.
-import { DANGER, romeDate } from './avalanche.js';
+import { DANGER, romeDate, isAineva, ainevaMapUrl, ainevaBulletinMapUrl } from './avalanche.js';
 import { REGIONS } from './places.js';
 
 const esc = (s) =>
@@ -72,7 +72,7 @@ export function avalBadge(place, aval) {
   </a>`;
 }
 
-function dayBlock(title, s) {
+function dayBlock(title, s, place, day) {
   const periods = s.periods
     .map(
       (p) => `${s.periods.length > 1 ? `<p class="aval-period">${esc(p.label)}</p>` : ''}
@@ -89,10 +89,19 @@ function dayBlock(title, s) {
         )
         .join('')}</ul>`
     : '';
+  // Cartina AINEVA dell'area di questo bollettino; se non c'è (es. SLF) si nasconde.
+  const img =
+    isAineva(place.region) && s.bulletinId && day
+      ? `<figure class="aval-bmap"><a href="${esc(ainevaBulletinMapUrl(day, place.region, s.bulletinId, 'jpg'))}" target="_blank" rel="noopener">
+          <img src="${esc(ainevaBulletinMapUrl(day, place.region, s.bulletinId))}" alt="Cartina AINEVA: area del bollettino che comprende ${esc(place.name)}" loading="lazy" onerror="this.closest('figure').remove()"></a>
+          <figcaption>Area del bollettino · AINEVA</figcaption></figure>`
+      : '';
   return `<div class="aval-day">
     <p class="aval-title">${title}</p>
+    <div class="aval-day-body"><div>
     ${periods}
     ${problems}
+    </div>${img}</div>
     <p class="aval-meta">Pubblicato ${esc(when(s.publicationTime))}${s.provider ? ` da ${esc(s.provider)}` : ''}${
       s.unscheduled ? ' (aggiornamento straordinario)' : ''
     } · valido fino a ${esc(when(s.validTo))}</p>
@@ -112,10 +121,10 @@ export function avalPlaceBlock(place, aval, { archive = false } = {}) {
   else {
     const prefix = !archive && aval.today === romeDate() ? 'Oggi, ' : '';
     const today = entry.today
-      ? dayBlock(`${prefix}${esc(longDay(aval.today))}`, entry.today)
+      ? dayBlock(`${prefix}${esc(longDay(aval.today))}`, entry.today, place, aval.today)
       : `<div class="aval-day"><p class="aval-title">${prefix}${esc(longDay(aval.today))}</p>
          <p class="muted">Nessun bollettino pubblicato per questa zona${archive ? ' in quel giorno' : ' oggi (fuori stagione o non ancora uscito)'}.</p></div>`;
-    const tomorrow = entry.tomorrow ? dayBlock(`Domani, ${esc(longDay(aval.tomorrow))}`, entry.tomorrow) : '';
+    const tomorrow = entry.tomorrow ? dayBlock(`Domani, ${esc(longDay(aval.tomorrow))}`, entry.tomorrow, place, aval.tomorrow) : '';
     body = today + tomorrow;
   }
   const zone = entry?.zone;
@@ -138,6 +147,51 @@ function legend() {
     .join('')}</ul>`;
 }
 
+// Cartine AINEVA delle regioni dei posti mostrati, per un giorno (oggi, domani o archivio).
+function regionMaps(places, aval, which) {
+  const day = aval?.[which];
+  if (!day) return '';
+  const regions = [...new Set(places.map((p) => p.region).filter(isAineva))];
+  if (!regions.length) return '';
+  const figs = regions
+    .map((region) => {
+      const inRegion = places.filter((p) => p.region === region);
+      const entries = inRegion.map((p) => aval.byPlace?.[p.id]?.[which]).filter(Boolean);
+      if (!entries.length) return ''; // nessun bollettino per i posti di questa regione
+      const split = entries.some((e) => e.periods.length > 1);
+      const name = REGIONS[region]?.name || region;
+      return (split ? [['am', 'mattino'], ['pm', 'pomeriggio']] : [['fd', '']])
+        .map(
+          ([period, label]) => `<figure class="aval-map">
+          <a href="${esc(ainevaMapUrl(day, region, period, 'jpg'))}" target="_blank" rel="noopener">
+            <img src="${esc(ainevaMapUrl(day, region, period))}" alt="Cartina AINEVA del pericolo valanghe, ${esc(name)}${label ? `, ${label}` : ''}, ${esc(longDay(day))}" loading="lazy"
+              onerror="this.closest('figure').classList.add('missing')">
+          </a>
+          <p class="muted aval-nomap">Cartina non disponibile.</p>
+          <figcaption>${esc(name)}${label ? ` · ${label}` : ''}</figcaption>
+        </figure>`,
+        )
+        .join('');
+    })
+    .join('');
+  return figs;
+}
+
+function mapsSection(places, aval, archive) {
+  if (!aval) return '';
+  const today = regionMaps(places, aval, 'today');
+  if (!today) return '';
+  const tomorrow = archive ? '' : regionMaps(places, aval, 'tomorrow');
+  const prefix = !archive && aval.today === romeDate() ? 'Oggi, ' : '';
+  return `<section class="aval-maps">
+    <h2>Cartina AINEVA</h2>
+    <p class="aval-title">${prefix}${esc(longDay(aval.today))}</p>
+    <div class="aval-map-grid">${today}</div>
+    ${tomorrow ? `<details class="aval-tomorrow"><summary>Cartina di domani, ${esc(longDay(aval.tomorrow))}</summary><div class="aval-map-grid">${tomorrow}</div></details>` : ''}
+    <p class="aval-meta">Tocca la cartina per ingrandirla. Immagini ufficiali di <a href="https://bollettini.aineva.it/bulletin/latest" target="_blank" rel="noopener">AINEVA</a>, le stesse del sito dei bollettini.</p>
+  </section>`;
+}
+
 // Schermata Valanghe.
 export function avalPage({ places, aval, archiveDay, today }) {
   const archive = !!archiveDay;
@@ -155,6 +209,7 @@ export function avalPage({ places, aval, archiveDay, today }) {
       <button class="btn ghost" type="submit">Vedi</button>
       ${archive ? '<a class="btn ghost" href="#/valanghe">Torna a oggi</a>' : ''}
     </form>
+    ${mapsSection(places, aval, archive)}
     ${places.map((p) => avalPlaceBlock(p, aval, { archive })).join('')}
     <section class="explain">
       <h3>Come leggere</h3>
