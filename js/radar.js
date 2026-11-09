@@ -181,19 +181,21 @@ function initMap(L) {
   });
   map.attributionControl.setPrefix(false);
 
+  // Sfondi senza chiave (CARTO ora la chiede). "Scura" è OpenStreetMap con i colori invertiti via CSS.
+  const OSM = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  const osm = (className) =>
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: OSM, className });
   const bases = {
-    Scura: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd',
-      maxZoom: 19,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
-    }),
+    Scura: osm('radar-base-dark'),
+    Chiara: osm(''),
     Topografica: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
       subdomains: 'abc',
       maxZoom: 17,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, <a href="https://opentopomap.org">OpenTopoMap</a>',
+      attribution: `${OSM}, <a href="https://opentopomap.org">OpenTopoMap</a>`,
     }),
   };
-  const startBase = readBase() === 'topografica' ? 'Topografica' : 'Scura';
+  const saved = readBase();
+  const startBase = Object.keys(bases).find((k) => k.toLowerCase() === saved) || 'Scura';
   bases[startBase].addTo(map);
   L.control.layers(bases, null, { position: 'topright' }).addTo(map);
   map.on('baselayerchange', (e) => saveBase(e.name.toLowerCase()));

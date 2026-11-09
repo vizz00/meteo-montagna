@@ -325,3 +325,4 @@ body.radar-mode main {
   body.radar-mode main { bottom: 0; }
 }
 .radar .leaflet-control-layers-toggle { filter: invert(1) hue-rotate(180deg); background-color: transparent; }
+.radar .radar-base-dark { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6); }
