@@ -520,3 +520,31 @@ body.radar-mode main {
 .pw-legend { margin: 6px 0 0; font-size: 11px; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
 .pw-legend .pw { width: 14px; margin-left: 6px; }
 .pw-k { color: var(--text); font-weight: 600; margin-right: 2px; }
+
+/* ---------- Preferiti: scheda unica (previsione + neve) e riordino ---------- */
+.sortbar { margin: 0 0 6px; }
+.sortbar .chip { display: inline-flex; align-items: center; gap: 4px; }
+.sortbar .chip .ico { width: 14px; height: 14px; }
+.sortbar .reorder-btn { margin-left: auto; padding-left: 10px; padding-right: 10px; }
+.sortbar .reorder-btn .ico { width: 18px; height: 18px; }
+.ss { display: grid; grid-template-columns: 22px repeat(3, 1fr); align-items: center; gap: 6px; margin: 0 14px 10px; padding: 6px 10px; background: var(--bg-2); border-radius: 12px; }
+.ss-ico { width: 18px; height: 18px; color: #9fd0ff; }
+.ss-cell { display: grid; justify-items: center; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.ss-cell + .ss-cell { border-left: 1px dashed var(--line); }
+.ss-k { color: var(--muted); font-size: 11px; }
+.ss-cell b { font-size: 17px; color: var(--muted); }
+.ss-cell.on b { color: var(--text); }
+.ss-cell b small { font-size: 11px; font-weight: 600; color: var(--muted); margin-left: 1px; }
+.fc-cm { font-size: 13px; font-weight: 800; line-height: 16px; min-height: 16px; font-variant-numeric: tabular-nums; }
+.fc-cm small { font-size: 9px; font-weight: 600; margin-left: 1px; }
+.fc-cm.none { color: var(--line); font-weight: 400; }
+.reorder { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px 12px; margin-bottom: 14px; }
+.ro-list { list-style: none; margin: 0; padding: 0; }
+.ro-row { display: flex; align-items: center; gap: 6px; padding: 6px 2px; border-bottom: 1px solid var(--line); }
+.ro-name { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.ro-name b { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ro-name small { color: var(--muted); font-size: 12px; }
+.ro-btn { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); display: grid; place-items: center; cursor: pointer; }
+.ro-btn svg { width: 20px; height: 20px; }
+.ro-btn:disabled { opacity: .3; cursor: default; }
+.ro-done { display: block; margin: 12px auto 0; }
