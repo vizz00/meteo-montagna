@@ -181,27 +181,25 @@ function placeMarker(lat, lon) {
   map.setView([lat, lon], Math.max(map.getZoom(), 12));
 }
 
-// Sfondi: scuro (come l'app), chiaro e topografico (curve di livello, per i posti in montagna).
+// Sfondi senza chiave: OpenStreetMap (anche in versione scura, invertita via CSS),
+// topografico (curve di livello) e satellite Esri.
 const LAYER_KEY = 'mm.mapLayer';
 const OSM = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
-const CARTO = '&copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';
 
 function baseLayers(L) {
+  const osm = (className) =>
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: OSM, className });
   return {
-    Scura: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-      subdomains: 'abcd',
-      attribution: `${OSM} ${CARTO}`,
-    }),
-    Chiara: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-      subdomains: 'abcd',
-      attribution: `${OSM} ${CARTO}`,
-    }),
+    Scura: osm('tiles-dark'),
+    Chiara: osm(''),
     Topografica: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
       maxZoom: 17,
       attribution: `${OSM}, <a href="https://opentopomap.org" target="_blank" rel="noopener">OpenTopoMap</a> (CC-BY-SA)`,
     }),
+    Satellite: L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      { maxZoom: 18, attribution: 'Immagini &copy; Esri, Maxar, Earthstar Geographics' },
+    ),
   };
 }
 
