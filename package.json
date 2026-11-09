@@ -1,0 +1,9 @@
+{
+  "name": "meteo-montagna",
+  "private": true,
+  "type": "module",
+  "description": "PWA statica: nessuna dipendenza, nessuna compilazione. Serve solo per i test.",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  }
+}
