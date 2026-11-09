@@ -188,7 +188,8 @@ function factsList(wf, af, elev, season, avState) {
 
   if (avState === 'loading') li.push('<li class="muted">Bollettini valanghe: sto scaricando l’archivio…</li>');
   else if (avState === 'nozone') li.push('<li class="muted">Bollettini valanghe: non trovo la micro-zona EAWS di questo posto.</li>');
-  else if (avState === 'error') li.push('<li class="muted">Bollettini valanghe: archivio non raggiungibile.</li>');
+  else if (avState === 'error')
+    li.push('<li class="muted">Bollettini valanghe: archivio non raggiungibile. <button type="button" class="btn small" data-season-retry>Riprova</button></li>');
   else if (af) {
     if (!af.nBulletins) {
       li.push('<li>Bollettini valanghe: nessuno pubblicato finora per questa micro-zona in questa stagione.</li>');
@@ -284,7 +285,7 @@ export function renderSeason(app, params, { places, prefs, isFav, rerender }) {
 
   let body;
   if (load.wxError && !wxDays.length) {
-    body = `<div class="notice error"><p>${esc(load.wxError)}</p></div>`;
+    body = `<div class="notice error"><p>${esc(load.wxError)}</p><button type="button" class="btn" data-season-retry>Riprova</button></div>`;
   } else if (!load.wx) {
     body = '<p class="loading">Scarico l’archivio meteo della stagione…</p>';
   } else if (!wxDays.length) {
@@ -344,6 +345,13 @@ export function renderSeason(app, params, { places, prefs, isFav, rerender }) {
     el.addEventListener('click', (e) => {
       const r = el.getBoundingClientRect();
       pick(Math.floor(((e.clientX - r.left) / r.width) * wxDays.length));
+    }),
+  );
+  // Riprova: si dimenticano i download falliti e si riparte.
+  app.querySelectorAll('[data-season-retry]').forEach((b) =>
+    b.addEventListener('click', () => {
+      for (const [k, v] of loads) if (v.wxError || v.avError) loads.delete(k);
+      rerender();
     }),
   );
   app.querySelectorAll('[data-season-step]').forEach((b) =>

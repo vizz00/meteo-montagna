@@ -52,3 +52,9 @@ poi aprire http://localhost:8000. Test dei calcoli: `npm test` (serve Node 20 o 
 ## Pubblicazione
 
 GitHub Pages dal ramo `main`, cartella principale (`/ (root)`).
+
+## Impeccable (revisioni di design)
+
+In `.claude/skills/impeccable` c'è [Impeccable](https://github.com/pbakaus/impeccable) (licenza Apache 2.0, versione 4.8.1):
+nei thread di Claude Code si usa con `/impeccable audit`, `/impeccable critique`, `/impeccable polish` e così via.
+Le statistiche anonime sono spente in `.impeccable/config.json`.

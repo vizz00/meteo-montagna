@@ -574,3 +574,15 @@ body.radar-mode main {
 .ro-btn svg { width: 20px; height: 20px; }
 .ro-btn:disabled { opacity: .3; cursor: default; }
 .ro-done { display: block; margin: 12px auto 0; }
+
+/* Vento nei preferiti: freccia (dove va il vento) + numero, niente lettera attaccata. */
+.fc-w { display: inline-flex; align-items: center; gap: 2px; }
+.w-arrow { width: 10px; height: 10px; flex: none; }
+
+/* Pagina del posto su telefono: "Ultime 24 h" in una riga sopra, non una colonna alta e vuota. */
+@media (max-width: 559px) {
+  .detail-card .sc { grid-template-columns: 1fr; }
+  .detail-card .sc-last { display: flex; justify-content: flex-start; align-items: baseline; gap: 10px; padding: 8px 12px; }
+  .detail-card .sc-last .sc-k { display: inline; font-size: 13px; }
+  .detail-card .sc-big { font-size: 24px; }
+}
