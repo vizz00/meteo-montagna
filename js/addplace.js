@@ -69,9 +69,12 @@ function regionSelect(current) {
 function formHtml(loading) {
   const e = sel.elevations || {};
   const edit = Boolean(sel.id);
-  const input = (id, label) =>
-    `<label class="elev-field"><span>${label}</span><input type="number" inputmode="numeric" name="${id}" min="0" max="4810" step="10" value="${e[id] ?? ''}" ${loading ? 'disabled' : ''} required><small>m</small></label>`;
-  return `<form id="place-form" class="add-form" novalidate>
+  const mode = sel.single ? 'single' : 'mountain';
+  const input = (id, label, value = e[id]) =>
+    `<label class="elev-field"><span>${label}</span><input type="number" inputmode="numeric" name="${id}" min="0" max="4810" step="10" value="${value ?? ''}" ${loading ? 'disabled' : ''}><small>m</small></label>`;
+  const modeBtn = (value, label) =>
+    `<label class="mode-opt"><input type="radio" name="mode" value="${value}" ${mode === value ? 'checked' : ''}><span>${label}</span></label>`;
+  return `<form id="place-form" class="add-form" data-mode="${mode}" novalidate>
     <label class="field"><span>Nome</span>
       <input type="text" name="placeName" maxlength="40" required value="${esc(sel.name)}" placeholder="Nome del posto">
     </label>
@@ -79,20 +82,27 @@ function formHtml(loading) {
     <label class="field"><span>Zona per il bollettino valanghe</span>
       <select name="region">${regionSelect(sel.region)}</select>
     </label>
-    <fieldset class="elevs">
+    <fieldset class="mode">
       <legend>Quote</legend>
-      ${input('valle', 'Valle')}${input('meta', 'Metà')}${input('cima', 'Cima')}
+      <div class="mode-switch">${modeBtn('mountain', 'Tre quote (montagna)')}${modeBtn('single', 'Una quota sola')}</div>
     </fieldset>
+    <div class="elevs elevs-3">${input('valle', 'Valle')}${input('meta', 'Metà')}${input('cima', 'Cima')}</div>
+    <div class="elevs elevs-1">${input('quota', 'Quota', e.valle)}</div>
     <p class="hint">${
       loading
         ? 'Calcolo le quote dal modello del terreno…'
         : sel.elevNote ||
-          `Proposte in automatico: valle è la quota del punto scelto, cima il punto più alto entro ${RADIUS_KM} km, metà sta in mezzo. Correggile se il tuo itinerario è diverso.`
+          `<span class="hint-3">Proposte in automatico: valle è la quota del punto scelto, cima il punto più alto entro ${RADIUS_KM} km, metà sta in mezzo. Correggile se il tuo itinerario è diverso.</span><span class="hint-1">Una quota sola, per posti in pianura o in città (es. casa): la quota del punto scelto.</span>`
     }</p>
     <p class="form-error" role="alert" hidden></p>
     <div class="form-actions">
-      <button class="btn" type="submit" ${loading ? 'disabled' : ''}>${edit ? 'Salva modifiche' : '★ Salva nei preferiti'}</button>
-      ${edit ? '<button class="btn ghost danger" type="button" data-delete-place>Elimina posto</button>' : ''}
+      ${
+        edit
+          ? `<button class="btn" type="submit" name="action" value="save" ${loading ? 'disabled' : ''}>Salva modifiche</button>
+      <button class="btn ghost danger" type="button" data-delete-place>Elimina posto</button>`
+          : `<button class="btn" type="submit" name="action" value="view" ${loading ? 'disabled' : ''}>Vedi previsioni →</button>
+      <button class="btn ghost" type="submit" name="action" value="fav" ${loading ? 'disabled' : ''}>★ Salva nei preferiti</button>`
+      }
     </div>
   </form>`;
 }
@@ -123,9 +133,9 @@ function showResults(list, message) {
 
 // ---------- scelta del punto ----------
 
-async function pick({ lat, lon, name, region, regionName: rName, baseElevation, id }) {
+async function pick({ lat, lon, name, region, regionName: rName, baseElevation, id, single }) {
   const my = ++token;
-  sel = { id, name: name || '', lat, lon, region, regionName: rName, elevations: null };
+  sel = { id, name: name || '', lat, lon, region, regionName: rName, elevations: null, single: Boolean(single) };
   placeMarker(lat, lon);
   showForm(true);
   document.getElementById('place-pick')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -147,6 +157,8 @@ async function pick({ lat, lon, name, region, regionName: rName, baseElevation, 
 
   const base = Number.isFinite(samples?.[0]) ? samples[0] : baseElevation;
   sel.elevations = proposeElevations(base, samples || []);
+  // Pianura o città: poco dislivello attorno, propone una quota sola.
+  if (!id && sel.elevations) sel.single = sel.elevations.cima - sel.elevations.valle < 300;
   if (!samples) {
     sel.elevNote = sel.elevations
       ? 'Non riesco a leggere il terreno attorno: ho messo solo la quota del paese. Correggi metà e cima.'
@@ -158,8 +170,37 @@ async function pick({ lat, lon, name, region, regionName: rName, baseElevation, 
 function placeMarker(lat, lon) {
   if (!map || !window.L) return;
   if (marker) marker.setLatLng([lat, lon]);
-  else marker = window.L.marker([lat, lon]).addTo(map);
+  else
+    marker = window.L.circleMarker([lat, lon], {
+      radius: 10,
+      color: '#ffffff',
+      weight: 3,
+      fillColor: '#7aa2ff',
+      fillOpacity: 1,
+    }).addTo(map);
   map.setView([lat, lon], Math.max(map.getZoom(), 12));
+}
+
+// Sfondi senza chiave: OpenStreetMap (anche in versione scura, invertita via CSS),
+// topografico (curve di livello) e satellite Esri.
+const LAYER_KEY = 'mm.mapLayer';
+const OSM = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+
+function baseLayers(L) {
+  const osm = (className) =>
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: OSM, className });
+  return {
+    Scura: osm('tiles-dark'),
+    Chiara: osm(''),
+    Topografica: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      maxZoom: 17,
+      attribution: `${OSM}, <a href="https://opentopomap.org" target="_blank" rel="noopener">OpenTopoMap</a> (CC-BY-SA)`,
+    }),
+    Satellite: L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      { maxZoom: 18, attribution: 'Immagini &copy; Esri, Maxar, Earthstar Geographics' },
+    ),
+  };
 }
 
 async function setupMap(center) {
@@ -171,20 +212,37 @@ async function setupMap(center) {
     if (map) map.remove();
     marker = null;
     map = L.map(el, { zoomControl: true }).setView(center || [45.9, 7.75], center ? 12 : 9);
-    L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-      maxZoom: 17,
-      attribution:
-        'Mappa © <a href="https://opentopomap.org" target="_blank" rel="noopener">OpenTopoMap</a> (CC-BY-SA), dati © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
-    }).addTo(map);
+    const layers = baseLayers(L);
+    let chosen = 'Scura';
+    try {
+      chosen = localStorage.getItem(LAYER_KEY) || chosen;
+    } catch {
+      /* ignorato */
+    }
+    (layers[chosen] || layers.Scura).addTo(map);
+    L.control.layers(layers, null, { position: 'topright' }).addTo(map);
+    map.on('baselayerchange', (e) => {
+      try {
+        localStorage.setItem(LAYER_KEY, e.name);
+      } catch {
+        /* ignorato */
+      }
+    });
     for (const p of PLACES) {
       if (sel?.id === p.id) continue;
-      L.circleMarker([p.lat, p.lon], { radius: 6, color: '#7aa2ff', weight: 2, fillOpacity: 0.6 })
+      L.circleMarker([p.lat, p.lon], { radius: 6, color: '#ffffff', weight: 2, fillColor: '#ffd166', fillOpacity: 0.9 })
         .bindTooltip(p.name)
         .addTo(map);
     }
     if (sel) placeMarker(sel.lat, sel.lon);
     map.on('click', (e) =>
-      pick({ lat: e.latlng.lat, lon: e.latlng.lng, id: sel?.id, name: sel?.id ? sel.name : undefined }),
+      pick({
+        lat: e.latlng.lat,
+        lon: e.latlng.lng,
+        id: sel?.id,
+        name: sel?.id ? sel.name : undefined,
+        single: sel?.id ? sel.single : false,
+      }),
     );
   } catch {
     if (note) note.textContent = 'La mappa non si carica (sei senza rete?). Puoi comunque cercare per nome.';
@@ -215,6 +273,7 @@ export function renderAddPage(app, params, { onSaved, onDeleted }) {
         region: editing.region,
         regionName: editing.regionName,
         elevations: { ...editing.elevations },
+        single: Boolean(editing.single),
       }
     : null;
 
@@ -296,14 +355,28 @@ export function renderAddPage(app, params, { onSaved, onDeleted }) {
     }
   });
 
+  page.addEventListener('change', (e) => {
+    if (e.target.name === 'mode') {
+      e.target.form.dataset.mode = e.target.value;
+      if (sel) sel.single = e.target.value === 'single';
+    }
+  });
+
   page.addEventListener('submit', (e) => {
     e.preventDefault();
     const f = e.target;
+    const action = e.submitter?.value || (sel.id ? 'save' : 'view');
     const val = (n) => f.elements.namedItem(n).value;
     const num = (n) => (val(n) === '' ? NaN : Number(val(n)));
-    const elevations = { valle: num('valle'), meta: num('meta'), cima: num('cima') };
+    const single = val('mode') === 'single';
+    const q = num('quota');
+    const elevations = single ? { valle: q, meta: q, cima: q } : { valle: num('valle'), meta: num('meta'), cima: num('cima') };
     const name = val('placeName').trim();
-    const err = !name ? 'Dai un nome al posto.' : checkElevations(elevations);
+    const err = !name
+      ? 'Dai un nome al posto.'
+      : single && !Number.isFinite(q)
+        ? 'Inserisci la quota.'
+        : checkElevations(elevations);
     const box = f.querySelector('.form-error');
     if (err) {
       box.textContent = err;
@@ -319,7 +392,10 @@ export function renderAddPage(app, params, { onSaved, onDeleted }) {
       elevations,
       region,
       regionName: region === sel.region ? sel.regionName : regionName(region),
+      single,
+      // "Vedi previsioni" senza preferiti: posto provvisorio, sostituito dal prossimo.
+      temp: action === 'view',
     });
-    onSaved?.(place, !sel.id);
+    onSaved?.(place, { fav: action === 'fav' });
   });
 }

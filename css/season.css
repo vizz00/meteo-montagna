@@ -1,0 +1,61 @@
+/* Schermata Stagione */
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px; scrollbar-width: thin; }
+.chip {
+  flex: none; display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px;
+  border-radius: 999px; border: 1px solid var(--line); background: var(--bg-2);
+  color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px;
+}
+.chip[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: #0b1220; }
+.segmented a {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 72px; min-height: 40px; padding: 0 12px; border-radius: 9px;
+  color: var(--muted); font-weight: 600; text-decoration: none;
+}
+.segmented a[aria-pressed="true"] { background: var(--accent); color: #0b1220; }
+.status .stale { color: var(--warn); }
+
+.season-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin: 0 0 14px; }
+.season-card h2 { margin: 0 0 8px; font-size: 17px; }
+.season-card h2 small { font-weight: 400; font-size: 12px; margin-left: 6px; }
+.season-facts { margin: 0; padding-left: 18px; }
+.season-facts li { margin: 0 0 6px; }
+
+/* Grafici: un SVG largo quanto la pagina, un giorno = 1 unità */
+.sg { margin: 0 0 10px; }
+.sg figcaption { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin-bottom: 3px; }
+.sg figcaption small { font-size: 11px; }
+.sg figcaption .muted { font-size: 11px; white-space: nowrap; }
+.sg-plot { position: relative; background: #0f1830; border-radius: 6px; overflow: hidden; cursor: pointer; touch-action: manipulation; }
+.sg-plot svg { display: block; width: 100%; height: 100%; }
+.sg-grid { stroke: var(--line); stroke-width: 1; }
+.sg-sel { fill: #ffffff; opacity: .28; }
+.sg-snow { fill: var(--snow-3); }
+.sg-dry { fill: #8b98b8; opacity: .14; }
+.sg-depth { fill: var(--snow-2); opacity: .7; }
+.sg-warm { fill: var(--warn); opacity: .2; }
+.sg-quota { stroke: var(--text); stroke-width: 1; stroke-dasharray: 4 3; opacity: .7; }
+.sg-fl { fill: none; stroke: var(--warn); stroke-width: 1.5; }
+.sg-rain { fill: #4fd1c5; }
+.sg-prob { fill: #8b98b8; }
+.sg-pwl { fill: #ff6b6b; }
+.sg-axis { position: relative; height: 16px; margin: -4px 0 6px; font-size: 11px; color: var(--muted); }
+.sg-axis span { position: absolute; top: 0; padding-left: 3px; border-left: 1px solid var(--line); text-transform: capitalize; }
+.sg-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0; padding: 0; font-size: 12px; color: var(--muted); }
+.sg-k { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; }
+.sg-k-dry { background: rgba(139, 152, 184, .35); }
+.sg-k-warm { background: rgba(255, 179, 92, .45); }
+.sg-k-rain { background: #4fd1c5; }
+.sg-k-pwl { background: #ff6b6b; }
+
+/* Giorno scelto */
+.season-day { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px 12px; margin: 0 0 14px; }
+.season-day-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.season-day-head h3 { margin: 0; font-size: 16px; text-align: center; }
+.season-day-head h3::first-letter { text-transform: uppercase; }
+.season-day-head .icon-btn { font-size: 22px; }
+.season-day-head .icon-btn:disabled { opacity: .35; cursor: default; }
+.season-day dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; margin: 10px 0; }
+.season-day dt { color: var(--muted); font-size: 12px; }
+.season-day dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.season-day-aval { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
+.season-day-link { margin: 0; font-size: 14px; }
