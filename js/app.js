@@ -526,7 +526,7 @@ function renderOverview() {
 function favButton(place) {
   const fav = isFav(place.id);
   const label = fav ? 'Togli dai preferiti' : 'Aggiungi ai preferiti';
-  return `<button type="button" class="btn ghost fav-btn" data-fav="${place.id}" aria-pressed="${fav}" aria-label="${label}" title="${label}">${fav ? '★' : '☆'}</button>`;
+  return `<button type="button" class="fav-btn" data-fav="${place.id}" aria-pressed="${fav}" aria-label="${label}" title="${label}">${fav ? '★' : '☆'}</button>`;
 }
 
 // ---------- dettaglio del posto: grafici per modello ----------

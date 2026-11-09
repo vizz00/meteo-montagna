@@ -70,6 +70,6 @@
 
 /* Dettaglio: titolo con bottone preferiti */
 .detail-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
-.fav-btn { min-height: 44px; min-width: 44px; padding: 0 10px; font-size: 24px; line-height: 1; color: var(--muted); }
+.fav-btn { min-height: 44px; min-width: 44px; padding: 0; border: 0; background: none; font-size: 28px; line-height: 1; color: var(--muted); cursor: pointer; }
 .fav-btn[aria-pressed="true"] { color: #ffd166; }
 .pick-map .tiles-dark { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6); }
