@@ -72,3 +72,4 @@
 .detail-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
 .fav-btn { min-height: 40px; font-size: 14px; }
 .fav-btn[aria-pressed="true"] { color: #ffd166; }
+.pick-map .tiles-dark { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6); }
