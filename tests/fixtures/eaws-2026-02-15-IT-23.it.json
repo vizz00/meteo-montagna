@@ -1,0 +1,50 @@
+{
+  "_nota": "Estratto reale di static.avalanche.report/eaws_bulletins/eaws_bulletins/2026-02-15/2026-02-15-IT-23.it.json (EAWS/AINEVA, CC BY 4.0). Tolti i testi lunghi dei previsori.",
+  "bulletins": [
+    {
+      "avalancheProblems": [
+        { "problemType": "wind_slab", "aspects": ["SW", "NW", "W", "E", "SE", "N", "S", "NE"], "avalancheSize": 4, "elevation": { "lowerBound": "2400" }, "frequency": "some", "snowpackStability": "very_poor", "validTimePeriod": "all_day" },
+        { "problemType": "new_snow", "aspects": ["SW", "NW", "W", "E", "SE", "N", "S", "NE"], "avalancheSize": 3, "frequency": "some", "snowpackStability": "poor", "validTimePeriod": "all_day" }
+      ],
+      "bulletinID": "832ec130-4b60-4e1c-80fa-511e8023658f",
+      "customData": { "ALBINA": { "mainDate": "2026-02-15" } },
+      "dangerRatings": [
+        { "mainValue": "considerable", "elevation": { "upperBound": "2400" }, "validTimePeriod": "all_day" },
+        { "mainValue": "high", "elevation": { "lowerBound": "2400" }, "validTimePeriod": "all_day" }
+      ],
+      "lang": "it",
+      "publicationTime": "2026-02-14T16:00:00+00:00",
+      "regions": [
+        { "regionID": "IT-23-AO-20", "name": "D - CERVINIA E ALTA VALPELLINE" },
+        { "regionID": "IT-23-AO-24", "name": "A - VALTOURNENCHE" },
+        { "regionID": "IT-23-AO-06", "name": "B - ALTA VALLE DI GRESSONEY" },
+        { "regionID": "IT-23-AO-25", "name": "B - TESTATA VAL D'AYAS SAINT-JACQUES" }
+      ],
+      "source": { "provider": { "name": "AINEVA Valle d'Aosta", "website": "https://bollettini.aineva.it" } },
+      "unscheduled": false,
+      "validTime": { "startTime": "2026-02-14T23:00:00+00:00", "endTime": "2026-02-15T23:00:00+00:00" }
+    },
+    {
+      "avalancheProblems": [
+        { "problemType": "wind_slab", "aspects": ["SW", "NW", "W", "E", "SE", "N", "S", "NE"], "elevation": { "lowerBound": "2100" }, "validTimePeriod": "all_day" },
+        { "problemType": "persistent_weak_layers", "aspects": ["SW", "NW", "W", "E", "SE", "N", "S", "NE"], "elevation": { "lowerBound": "2000" }, "validTimePeriod": "all_day" }
+      ],
+      "bulletinID": "28e09148-a80a-44bd-a138-fcb070d7174b",
+      "customData": { "ALBINA": { "mainDate": "2026-02-15" } },
+      "dangerRatings": [
+        { "mainValue": "moderate", "elevation": { "upperBound": "2100" }, "validTimePeriod": "all_day" },
+        { "mainValue": "considerable", "elevation": { "lowerBound": "2100" }, "validTimePeriod": "all_day" }
+      ],
+      "lang": "it",
+      "publicationTime": "2026-02-14T16:00:00+00:00",
+      "regions": [
+        { "regionID": "IT-23-AO-05", "name": "A - BASSA VALTOURNENCHE CHATILLON" },
+        { "regionID": "IT-23-AO-07", "name": "B - MEDIA VAL D'AYAS BRUSSON" },
+        { "regionID": "IT-23-AO-08", "name": "B - MEDIA VALLE DEL LYS" }
+      ],
+      "source": { "provider": { "name": "AINEVA Valle d'Aosta", "website": "https://bollettini.aineva.it" } },
+      "unscheduled": false,
+      "validTime": { "startTime": "2026-02-14T23:00:00+00:00", "endTime": "2026-02-15T23:00:00+00:00" }
+    }
+  ]
+}

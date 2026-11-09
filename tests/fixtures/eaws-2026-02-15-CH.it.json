@@ -1,0 +1,23 @@
+{
+  "_nota": "Estratto reale di static.avalanche.report/eaws_bulletins/eaws_bulletins/2026-02-15/2026-02-15-CH.it.json (SLF, CC BY 4.0): primo bollettino, regioni ridotte, testi tolti.",
+  "bulletins": [
+    {
+      "avalancheProblems": [
+        { "customData": { "CH": { "subdivision": "plus" } }, "problemType": "wind_slab", "aspects": ["N", "NE", "E", "SE", "S", "SW", "W", "NW"], "dangerRatingValue": "considerable", "elevation": { "lowerBound": "2000" }, "validTimePeriod": "all_day" },
+        { "customData": { "CH": { "subdivision": "plus" } }, "problemType": "persistent_weak_layers", "aspects": ["N", "NE", "E", "SE", "S", "SW", "W", "NW"], "dangerRatingValue": "considerable", "elevation": { "lowerBound": "2000" }, "validTimePeriod": "all_day" }
+      ],
+      "bulletinID": "a3f28319-b069-4301-97fd-dface3bb5262",
+      "dangerRatings": [{ "mainValue": "considerable", "validTimePeriod": "all_day", "customData": { "CH": { "subdivision": "plus" } } }],
+      "lang": "it",
+      "nextUpdate": "2026-02-15T16:00:00+00:00",
+      "publicationTime": "2026-02-15T07:00:00+00:00",
+      "regions": [
+        { "regionID": "CH-4222", "name": "Zermatt" },
+        { "regionID": "CH-4224", "name": "Monte Rosa" }
+      ],
+      "source": { "provider": { "name": "SLF", "website": "https://whiterisk.ch/it/conditions" } },
+      "unscheduled": false,
+      "validTime": { "startTime": "2026-02-15T07:00:00+00:00", "endTime": "2026-02-15T16:00:00+00:00" }
+    }
+  ]
+}
