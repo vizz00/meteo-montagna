@@ -58,7 +58,23 @@ a { color: var(--accent); }
   border: 1px solid var(--line); border-radius: 12px;
   background: var(--bg-2); color: var(--text); cursor: pointer;
 }
-.icon-btn.spinning svg { animation: spin 1s linear infinite; }
+.icon-btn { text-decoration: none; }
+
+/* Trascina giù per aggiornare: il cerchio scende da sotto la barra in alto. */
+.ptr {
+  position: fixed; left: 50%; top: calc(64px + env(safe-area-inset-top)); z-index: 9;
+  width: 40px; height: 40px; margin-left: -20px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--bg-2); color: var(--muted); border: 1px solid var(--line);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+  transform: translateY(calc(var(--pull, 0px) - 48px)) rotate(var(--rot, 0deg));
+  opacity: 0;
+  pointer-events: none;
+}
+.ptr:not(.dragging) { transition: transform .2s, opacity .2s; }
+.ptr.show { opacity: 1; }
+.ptr.ready { color: var(--accent); }
+.ptr.spinning svg { animation: spin 1s linear infinite; color: var(--accent); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 main { max-width: 980px; margin: 0 auto; padding: 14px 16px 24px; outline: none; }
@@ -312,7 +328,7 @@ table.models tr.sep th, table.models tr.sep td { border-top: 2px solid var(--lin
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .icon-btn.spinning svg { animation: none; }
+  .ptr.spinning svg { animation: none; }
 }
 
 /* Radar: mappa a tutto schermo tra la barra in alto e quella in basso */
@@ -457,6 +473,16 @@ body.radar-mode main {
 .chart-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 12px; margin: 2px 2px 4px; font-size: 12px; color: var(--muted); }
 .model-pick select { margin-left: 6px; background: var(--bg-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 13px; }
 .chart { display: block; width: 100%; height: auto; max-width: 640px; margin: 0 auto; }
+/* 6 giorni visibili, gli altri con lo swipe; l'asse dei valori resta fermo a sinistra. */
+.chart-wrap { position: relative; max-width: 640px; margin: 0 auto; }
+.chart-scroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; scroll-snap-type: x proximity; }
+.chart-scroll::-webkit-scrollbar { display: none; }
+.chart-inner .chart { max-width: none; margin: 0; }
+.chart-inner .chart.strip { margin-top: -4px; }
+.chart-yax-box { position: absolute; left: 0; top: 0; bottom: 0; width: 9.5%; background: var(--card); pointer-events: none; }
+.chart-yax-box .chart { max-width: none; }
+.ref-box { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; }
+.ref-tag { position: absolute; right: 2%; transform: translateY(-100%); font: 700 11px system-ui, sans-serif; color: #e8eefc; background: color-mix(in srgb, var(--card) 70%, transparent); padding: 0 3px; border-radius: 4px; }
 .chart text { font: 11px system-ui, sans-serif; fill: var(--muted); }
 .chart .ax-day.we, .chart .ax-num.we { fill: var(--text); font-weight: 700; }
 .chart .grid { stroke: var(--line); stroke-width: .6; stroke-dasharray: 2 3; }

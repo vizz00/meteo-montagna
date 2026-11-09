@@ -23,10 +23,14 @@
       <img src="icons/icon.svg" alt="" width="28" height="28">
       <span>Meteo montagna</span>
     </a>
-    <button id="refresh" class="icon-btn" type="button" aria-label="Aggiorna previsioni" title="Aggiorna">
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 4a8 8 0 0 1 7.4 5H17v2h6V5h-2v2.6A10 10 0 1 0 22 12h-2a8 8 0 1 1-8-8z"/></svg>
-    </button>
+    <a id="search" class="icon-btn" href="#/aggiungi" aria-label="Cerca un posto" title="Cerca">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+    </a>
   </header>
+
+  <div id="ptr" class="ptr" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 4a8 8 0 0 1 7.4 5H17v2h6V5h-2v2.6A10 10 0 1 0 22 12h-2a8 8 0 1 1-8-8z"/></svg>
+  </div>
 
   <main id="app" tabindex="-1">
     <p class="loading">Caricamento…</p>

@@ -1,8 +1,17 @@
 // Grafici SVG del dettaglio posto: una linea spessa con la mediana dei modelli
 // e linee sottili per ogni modello. Nessuna libreria esterna.
 
-const W = 400;
+const W = 400; // larghezza di una "pagina" visibile sul telefono
 const PAD = { l: 38, r: 8, t: 10, b: 34 };
+const PAGE_DAYS = 6; // giorni visibili senza scorrere; gli altri si vedono con lo swipe
+
+// Larghezza totale del grafico: 6 giorni occupano una pagina, il resto continua a destra.
+function geometry(times) {
+  const days = new Set(times.map((t) => t.slice(0, 10))).size;
+  const pageW = W - PAD.l - PAD.r;
+  const plotW = days > PAGE_DAYS ? (pageW * days) / PAGE_DAYS : pageW;
+  return { Wd: PAD.l + plotW + PAD.r, plotW, pageW };
+}
 const WEEK = ['D', 'L', 'M', 'M', 'G', 'V', 'S'];
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -68,25 +77,31 @@ export function lineChart(series, opts) {
   if (hi === lo) hi = lo + st;
   const bottom = H - PAD.b;
   const top = opts.arrows ? PAD.t + 14 : PAD.t; // spazio per le frecce del vento sopra il grafico
-  const x = (i) => PAD.l + (i / Math.max(1, n - 1)) * (W - PAD.l - PAD.r);
+  const { Wd, plotW, pageW } = geometry(times);
+  const x = (i) => PAD.l + (i / Math.max(1, n - 1)) * plotW;
   const y = (v) => top + (1 - (v - lo) / (hi - lo)) * (bottom - top);
+  // Inizio di ogni pagina di 6 giorni: lì si ripetono le etichette (quota, fasce del vento).
+  const pages = [];
+  for (let px = PAD.l; px < PAD.l + plotW - 1; px += pageW) pages.push(px);
 
   let svg = '';
   for (const b of opts.bands || []) {
     const y1 = y(Math.min(hi, b.to));
     const y2 = y(Math.max(lo, b.from));
     if (y2 <= y1) continue;
-    svg += `<rect class="band ${b.cls}" x="${PAD.l}" y="${y1}" width="${W - PAD.l - PAD.r}" height="${y2 - y1}"/>`;
-    if (y2 - y1 > 12) svg += `<text class="band-l" x="${PAD.l + 4}" y="${y1 + 11}">${b.label}</text>`;
+    svg += `<rect class="band ${b.cls}" x="${PAD.l}" y="${y1}" width="${plotW}" height="${y2 - y1}"/>`;
+    if (y2 - y1 > 12) for (const px of pages) svg += `<text class="band-l" x="${px + 4}" y="${y1 + 11}">${b.label}</text>`;
   }
+  let yax = '';
+  let refLabel = '';
   for (let v = lo; v <= hi + 1e-9; v += st) {
-    svg += `<line class="grid" x1="${PAD.l}" x2="${W - PAD.r}" y1="${y(v)}" y2="${y(v)}"/>`;
-    svg += `<text class="ax-y" x="${PAD.l - 4}" y="${y(v) + 3}" text-anchor="end">${opts.fmt ? opts.fmt(v) : Math.round(v)}</text>`;
+    svg += `<line class="grid" x1="${PAD.l}" x2="${Wd - PAD.r}" y1="${y(v)}" y2="${y(v)}"/>`;
+    yax += `<text class="ax-y" x="${PAD.l - 4}" y="${y(v) + 3}" text-anchor="end">${opts.fmt ? opts.fmt(v) : Math.round(v)}</text>`;
   }
   svg += dayAxis(times, x, top, bottom);
   if (opts.ref) {
-    svg += `<line class="ref" x1="${PAD.l}" x2="${W - PAD.r}" y1="${y(opts.ref.value)}" y2="${y(opts.ref.value)}"/>`;
-    svg += `<text class="ref-l" x="${W - PAD.r - 2}" y="${y(opts.ref.value) - 4}" text-anchor="end">${esc(opts.ref.label)}</text>`;
+    svg += `<line class="ref" x1="${PAD.l}" x2="${Wd - PAD.r}" y1="${y(opts.ref.value)}" y2="${y(opts.ref.value)}"/>`;
+    refLabel = `<span class="ref-tag" style="top:${(((y(opts.ref.value) - 4) / H) * 100).toFixed(2)}%">${esc(opts.ref.label)}</span>`;
   }
   for (const id of ids) {
     if (id === opts.highlight) continue;
@@ -105,7 +120,24 @@ export function lineChart(series, opts) {
       svg += `<g transform="translate(${x(i)},${PAD.t + 4}) rotate(${deg + 180})"><path class="arrow" d="M0,-5 L3,2 L0,0.5 L-3,2 Z"/></g>`;
     });
   }
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opts.label || '')}">${svg}</svg>`;
+  // L'asse dei valori resta fermo a sinistra mentre il grafico scorre.
+  return {
+    width: Wd,
+    height: H,
+    refLabel,
+    plot: `<svg class="chart" viewBox="0 0 ${Wd} ${H}" role="img" aria-label="${esc(opts.label || '')}">${svg}</svg>`,
+    axis: `<svg class="chart chart-yax" viewBox="0 0 ${PAD.l} ${H}" aria-hidden="true">${yax}</svg>`,
+  };
+}
+
+/** Grafico + striscia in un contenitore che scorre in orizzontale: 6 giorni visibili, gli altri con lo swipe. */
+export function scrollCharts(chart, strip) {
+  if (typeof chart === 'string') return chart + (strip || '');
+  return `<div class="chart-wrap">
+    <div class="chart-scroll"><div class="chart-inner" style="width:${((chart.width / W) * 100).toFixed(2)}%">${chart.plot}${strip || ''}</div></div>
+    <div class="chart-yax-box">${chart.axis}</div>
+    ${chart.refLabel ? `<div class="ref-box" style="aspect-ratio:${W} ${chart.height}">${chart.refLabel}</div>` : ''}
+  </div>`;
 }
 
 /** Striscia sotto ai grafici: precipitazione (neve / pioggia) a barre e nuvolosità come area. */
@@ -116,11 +148,12 @@ export function precipStrip(series, { highlight } = {}) {
   const n = times.length;
   const bottom = H - 6;
   const top = 4;
-  const x = (i) => PAD.l + (i / Math.max(1, n - 1)) * (W - PAD.l - PAD.r);
+  const { Wd, plotW } = geometry(times);
+  const x = (i) => PAD.l + (i / Math.max(1, n - 1)) * plotW;
   const maxP = Math.max(4, ...src.snow.map((s, i) => (s ?? 0) / 1 + (src.rain[i] ?? 0)));
   const yP = (v) => bottom - (v / maxP) * (bottom - top);
   const yC = (v) => bottom - (v / 100) * (bottom - top);
-  const bw = Math.max(1.5, (W - PAD.l - PAD.r) / n - 0.8);
+  const bw = Math.max(1.5, plotW / n - 0.8);
   let svg = '';
   // nuvolosità
   const cl = src.cloud;
@@ -138,5 +171,5 @@ export function precipStrip(series, { highlight } = {}) {
     if (rn > 0.1) svg += `<rect class="bar-rain" x="${x(i) - bw / 2}" y="${yP(sn + rn)}" width="${bw}" height="${yP(sn) - yP(sn + rn)}"/>`;
   });
   svg += dayAxis(times, x, top, bottom, false);
-  return `<svg class="chart strip" viewBox="0 0 ${W} ${H}" role="img" aria-label="Precipitazioni e nuvolosità">${svg}</svg>`;
+  return `<svg class="chart strip" viewBox="0 0 ${Wd} ${H}" role="img" aria-label="Precipitazioni e nuvolosità">${svg}</svg>`;
 }

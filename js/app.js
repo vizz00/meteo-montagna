@@ -1,7 +1,7 @@
 import { PLACES, BANDS, REGIONS, externalLinks } from './places.js';
 import { MODELS, rangeText, roundCm, compass, totalRange } from './snow.js';
 import { loadForecast, loadDetail } from './forecast.js';
-import { lineChart, precipStrip } from './charts.js';
+import { lineChart, precipStrip, scrollCharts } from './charts.js';
 import { powderDays } from './powder.js';
 import { loadPrefs, savePrefs } from './storage.js';
 import { mountRadar, unmountRadar } from './radar.js';
@@ -13,7 +13,7 @@ import { evaluateWindows, STATUS_LABEL, SECTORS, RULES } from './window.js';
 import { renderSeason } from './season-view.js';
 
 const app = document.getElementById('app');
-const refreshBtn = document.getElementById('refresh');
+const ptr = document.getElementById('ptr');
 
 const state = {
   prefs: loadPrefs(),
@@ -204,7 +204,7 @@ async function refresh(force = false) {
   refreshAvalanche(force);
   state.loading = true;
   state.error = null;
-  refreshBtn.classList.add('spinning');
+  ptr.classList.add('spinning');
   render();
   try {
     state.forecast = await loadForecast(PLACES, { force });
@@ -213,12 +213,52 @@ async function refresh(force = false) {
     state.error = 'Non riesco a scaricare le previsioni. Controlla la connessione e riprova.';
   } finally {
     state.loading = false;
-    refreshBtn.classList.remove('spinning');
+    ptr.classList.remove('spinning');
+    setPull(0);
     render();
   }
 }
 
-refreshBtn.addEventListener('click', () => refresh(true));
+// Trascina giù dall'inizio della pagina per aggiornare (non sulle mappe).
+const PULL_MAX = 90;
+const PULL_GO = 64;
+let pull = null;
+function setPull(d, dragging = false) {
+  ptr.style.setProperty('--pull', `${d}px`);
+  ptr.style.setProperty('--rot', `${d * 3}deg`);
+  ptr.classList.toggle('show', d > 6);
+  ptr.classList.toggle('dragging', dragging);
+}
+window.addEventListener(
+  'touchstart',
+  (e) => {
+    if (window.scrollY > 0 || state.loading || e.touches.length !== 1) return;
+    if (e.target.closest?.('.leaflet-container, .chart-scroll, input, select')) return;
+    pull = { y0: e.touches[0].clientY, d: 0 };
+  },
+  { passive: true },
+);
+window.addEventListener(
+  'touchmove',
+  (e) => {
+    if (!pull) return;
+    pull.d = Math.max(0, Math.min(PULL_MAX, (e.touches[0].clientY - pull.y0) * 0.6));
+    if (window.scrollY > 0) pull.d = 0;
+    setPull(pull.d, true);
+    ptr.classList.toggle('ready', pull.d >= PULL_GO);
+  },
+  { passive: true },
+);
+window.addEventListener('touchend', () => {
+  if (!pull) return;
+  const go = pull.d >= PULL_GO;
+  pull = null;
+  ptr.classList.remove('ready');
+  if (go) {
+    setPull(PULL_GO);
+    refresh(true);
+  } else setPull(0);
+});
 
 // ---------- schermate ----------
 
@@ -558,8 +598,7 @@ function chartBlock(place, band) {
     <div class="chart-bar">${pick}<span class="chart-legend"><span class="lg-med${hl ? ' lg-hl' : ''}"></span>${
       hl ? esc(MODELS.find((m) => m.id === hl).label) : 'mediana'
     } · <span class="lg-model"></span> singoli modelli</span></div>
-    ${chart}
-    ${precipStrip(series, { highlight: hl })}
+    ${scrollCharts(chart, precipStrip(series, { highlight: hl }))}
     <p class="chart-foot"><span class="lg-snow"></span> neve <span class="lg-rain"></span> pioggia <span class="lg-cloud"></span> nuvole${
       cur.id === 'snowTotal' && lastVal != null ? ` · <b>${roundCm(lastVal)} cm</b> in 15 giorni (${hl ? 'modello scelto' : 'mediana'})` : ''
     }</p>
