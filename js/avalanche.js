@@ -145,6 +145,8 @@ export function summarizeBulletin(json, zoneId) {
       label: PROBLEMS[p.problemType] || p.problemType,
       where: elevationText(p.elevation),
       aspects: aspectsText(p.aspects),
+      aspectList: p.aspects || [],
+      elevation: p.elevation || null,
       period: p.validTimePeriod && p.validTimePeriod !== 'all_day' ? PERIODS[p.validTimePeriod] : null,
     })),
   };

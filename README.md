@@ -7,7 +7,8 @@ App: https://vizz00.github.io/meteo-montagna/
 ## Cosa c'è oggi
 
 - **Panoramica 7 giorni** per Cervinia, Champoluc e Alagna, alla quota scelta (valle / metà / cima): neve stimata come intervallo tra i modelli, zero termico massimo, vento in quota (700 hPa, circa 3000 m), totale settimanale e "prossima nevicata".
-- **Dettaglio posto**: tabella della neve per modello e per giorno.
+- **Finestra buona** per ogni giorno e posto: sole, vento in quota debole, zero termico sotto la quota e nessun segnale d'allarme di nivologia (neve fresca critica in 3 giorni, accumuli da vento sui versanti sottovento, pioggia su neve, niente rigelo, primo sole dopo la nevicata, grado e problemi del bollettino). Regole e soglie in `js/window.js`, con le fonti (SLF, EAWS). Nessun voto: si vedono le condizioni rispettate e i segnali scattati.
+- **Dettaglio posto**: tabella della neve per modello e per giorno, finestra giorno per giorno con la rosa dei versanti caricati, scelta facoltativa dei propri versanti.
 - **Preferiti** salvati nel browser (nessun account).
 - **Aggiungi posto**: cerca una località per nome o tocca la mappa; le quote valle / metà / cima vengono proposte dal modello del terreno e si possono correggere. I posti aggiunti restano nel browser e si possono modificare o eliminare.
 - Installabile su telefono e computer, si apre anche senza rete con l'ultima previsione scaricata.
@@ -31,6 +32,7 @@ La neve alla quota è stimata da precipitazione, temperatura e zero termico (lim
 | `js/leaflet-loader.js` | carica la mappa Leaflet solo quando serve |
 | `js/forecast.js` | scarica e salva le previsioni |
 | `js/snow.js` | calcoli della neve (provati con i test) |
+| `js/window.js` | regole della finestra buona (provate con i test) |
 | `js/avalanche.js`, `js/avalanche-view.js` | grado valanghe ufficiale per micro-zona (EAWS) e come si mostra |
 | `sw.js`, `manifest.webmanifest`, `icons/` | app installabile e offline |
 

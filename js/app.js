@@ -5,6 +5,7 @@ import { loadPrefs, savePrefs } from './storage.js';
 import { renderAddPage } from './addplace.js';
 import { loadAvalanche, romeDate } from './avalanche.js';
 import { avalBadge, avalPlaceBlock, avalPage } from './avalanche-view.js';
+import { evaluateWindows, STATUS_LABEL, SECTORS, RULES } from './window.js';
 
 const app = document.getElementById('app');
 const refreshBtn = document.getElementById('refresh');
@@ -81,6 +82,99 @@ function skyIcon(day) {
     'n.d.': '',
   };
   return `<svg class="sky" viewBox="0 0 24 24" role="img" aria-label="${kind}"><title>${kind}</title>${icons[kind]}</svg>`;
+}
+
+// ---------- finestra buona ----------
+
+const placeAspects = (id) => state.prefs.aspects?.[id] || [];
+
+function bulletinFor(placeId) {
+  const a = state.aval;
+  const entry = a?.byPlace?.[placeId];
+  return (date) => (!entry ? null : date === a.today ? entry.today : date === a.tomorrow ? entry.tomorrow : null);
+}
+
+function windowsFor(place, band) {
+  const s = state.forecast?.byPlace[place.id]?.[band];
+  if (!s) return null;
+  return evaluateWindows(s, place.elevations[band], { aspects: placeAspects(place.id), bulletinFor: bulletinFor(place.id) });
+}
+
+function windowTitle(w) {
+  const lines = [STATUS_LABEL[w.status]];
+  for (const s of w.signals) if (s.level !== 'info') lines.push(`${s.certainty === 'possibile' ? 'possibile: ' : ''}${s.text}`);
+  if (w.status === 'meteo') lines.push(w.conditions.filter((c) => !c.bonus && !c.ok).map((c) => `no ${c.label} (${c.text})`).join(', '));
+  return lines.join('\n');
+}
+
+const WIN_SHORT = { aperta: 'sì', avvisi: 'sì!', chiusa: 'no', meteo: '–', nd: '' };
+
+function windowMark(w) {
+  if (!w) return '<span class="win"></span>';
+  return `<span class="win win-${w.status}" title="${esc(windowTitle(w))}">${WIN_SHORT[w.status]}</span>`;
+}
+
+// Rosa a 8 settori: i versanti caricati dal vento in arancione, quelli scelti dall'utente bordati.
+function aspectRose(loaded, mine = [], size = 64) {
+  const r = size / 2;
+  const paths = SECTORS.map((name, i) => {
+    const a0 = ((i * 45 - 22.5 - 90) * Math.PI) / 180;
+    const a1 = ((i * 45 + 22.5 - 90) * Math.PI) / 180;
+    const R = r - 2;
+    const p = `M${r},${r} L${r + R * Math.cos(a0)},${r + R * Math.sin(a0)} A${R},${R} 0 0 1 ${r + R * Math.cos(a1)},${r + R * Math.sin(a1)} Z`;
+    const cls = `${loaded.includes(name) ? 'loaded' : ''} ${mine.includes(name) ? 'mine' : ''}`;
+    return `<path class="${cls}" d="${p}"><title>${name}</title></path>`;
+  }).join('');
+  return `<svg class="rose" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="Versanti caricati: ${
+    loaded.length ? loaded.join(', ') : 'nessuno'
+  }">${paths}<text x="${r}" y="9" text-anchor="middle">N</text></svg>`;
+}
+
+function windowSection(place, band) {
+  const s = state.forecast?.byPlace[place.id]?.[band];
+  if (!s) return '';
+  const ws = windowsFor(place, band);
+  const mine = placeAspects(place.id);
+  const items = s.days
+    .map((d, i) => {
+      const w = ws[i];
+      const conds = w.conditions
+        .map((c) => `<li class="${c.ok ? 'ok' : 'ko'}${c.bonus ? ' bonus' : ''}">${c.ok ? '✓' : c.bonus ? '·' : '✗'} ${esc(c.label)} <span class="muted">${esc(c.text)}</span></li>`)
+        .join('');
+      const sigs = w.signals
+        .map(
+          (x) =>
+            `<li class="sig sig-${x.level}">${x.level === 'chiusa' ? '⛔' : x.level === 'info' ? 'ℹ' : '⚠'} ${
+              x.certainty === 'possibile' ? '<b>possibile</b>: ' : ''
+            }${esc(x.text)} <span class="muted">(${esc(x.source)})</span></li>`,
+        )
+        .join('');
+      const rose = w.loaded.length
+        ? `<div class="win-rose">${aspectRose(w.loaded, mine)}<span class="muted">${
+            w.slabSource === 'bollettino' ? 'dal bollettino' : 'stima dal vento in quota'
+          }</span></div>`
+        : '';
+      return `<li class="win-day">
+        <div class="win-head"><span class="cap">${longDay(d.date)}</span><span class="win-pill win-${w.status}">${STATUS_LABEL[w.status]}</span></div>
+        <div class="win-body"><div><ul class="win-conds">${conds}</ul>${sigs ? `<ul class="win-sigs">${sigs}</ul>` : ''}</div>${rose}</div>
+      </li>`;
+    })
+    .join('');
+  const picker = SECTORS.map(
+    (a) => `<button type="button" class="aspect" data-aspect="${a}" data-place-aspect="${place.id}" aria-pressed="${mine.includes(a)}">${a}</button>`,
+  ).join('');
+  return `<section class="windows">
+    <h2>Finestra buona a ${place.elevations[band]} m</h2>
+    <p class="muted small">Sole, vento debole e zero termico sotto la quota, senza segnali d'allarme di nivologia. Nessun voto: i segnali vengono da regole note (SLF, EAWS) e dal bollettino, che ha sempre l'ultima parola.</p>
+    <div class="aspect-pick"><span>I tuoi versanti qui${mine.length ? '' : ' <span class="muted">(nessuno: la finestra vale per versante)</span>'}</span><div class="aspects">${picker}</div></div>
+    <ol class="win-list">${items}</ol>
+  </section>`;
+}
+
+function toggleAspect(placeId, aspect) {
+  const cur = placeAspects(placeId);
+  const next = cur.includes(aspect) ? cur.filter((a) => a !== aspect) : [...cur, aspect];
+  setPrefs({ aspects: { ...(state.prefs.aspects || {}), [placeId]: SECTORS.filter((a) => next.includes(a)) } });
 }
 
 // ---------- caricamento dati ----------
@@ -161,7 +255,7 @@ function summaryCard(visible) {
   </section>`;
 }
 
-function dayCell(place, day) {
+function dayCell(place, day, win) {
   const med = day.snow ? roundCm(day.snow.median) : null;
   const max = day.snow ? day.snow.max : 0;
   const scale = 40; // cm a cui la barra è piena
@@ -182,6 +276,7 @@ function dayCell(place, day) {
     <span class="snow ${med ? 'has-snow' : ''}">${day.snow ? rangeText(day.snow) : 'n.d.'}</span>
     <span class="fl" title="Zero termico massimo">${fl}</span>
     <span class="wind" title="Vento massimo in quota (700 hPa, circa 3000 m), km/h">${wind}</span>
+    ${windowMark(win)}
   </a>`;
 }
 
@@ -192,6 +287,7 @@ function placeCard(place) {
   const elev = place.elevations[band];
   const fav = isFav(place.id);
   const total = s?.total;
+  const wins = windowsFor(place, band);
   return `<article class="place" data-place="${place.id}">
     <header class="place-head">
       <button type="button" class="star" data-fav="${place.id}" aria-pressed="${fav}" aria-label="${fav ? 'Togli dai preferiti' : 'Aggiungi ai preferiti'}">${fav ? '★' : '☆'}</button>
@@ -207,9 +303,9 @@ function placeCard(place) {
     <div class="days" role="list">
       <div class="row-labels" aria-hidden="true">
         <span class="day-name">&nbsp;</span><span class="sky-sp"></span><span class="bar-sp"></span>
-        <span class="snow">cm</span><span class="fl">0°C</span><span class="wind">vento</span>
+        <span class="snow">cm</span><span class="fl">0°C</span><span class="wind">vento</span><span class="win-l" title="Finestra buona">fin.</span>
       </div>
-      ${s ? s.days.map((d) => dayCell(place, d)).join('') : '<p class="muted">Dati non disponibili</p>'}
+      ${s ? s.days.map((d, i) => dayCell(place, d, wins?.[i])).join('') : '<p class="muted">Dati non disponibili</p>'}
     </div>
     <footer class="place-foot">
       ${avalBadge(place, state.aval)}
@@ -256,6 +352,7 @@ function renderOverview() {
       (limite neve circa 300 m sotto lo zero termico; rapporto neve/acqua da 10:1 vicino a 0 °C fino a 15:1 sotto −8 °C).
       Il numero è l'<b>intervallo tra i modelli</b> (${MODELS.map((m) => m.label).join(', ')}); la barra chiara arriva al modello più nevoso, quella piena alla mediana.</p>
       <p><b>0°C</b>: zero termico massimo del giorno in metri (ECMWF e Météo-France non lo forniscono). <b>Vento</b>: massimo del giorno in quota (700 hPa, circa 3000 m), in km/h, con la direzione di provenienza.</p>
+      <p><b>Fin.</b> (finestra buona): <b>sì</b> = sole, vento in quota sotto ${RULES.okWind} km/h, zero termico sotto la quota e nessun segnale d'allarme; <b>sì!</b> = buona ma con avvisi (per esempio accumuli da vento su alcuni versanti); <b>no</b> = chiusa da un segnale (neve fresca critica, pioggia, niente rigelo, pericolo 4 del bollettino); <b>–</b> = meteo non buono. Il dettaglio di ogni giorno è nella pagina del posto.</p>
       <p>I modelli ad alta risoluzione coprono solo i primi giorni (MeteoSwiss CH2 circa 5, ICON-2I circa 3): il totale a 7 giorni usa solo i modelli che coprono tutta la settimana.</p>
     </section>`;
 }
@@ -309,6 +406,7 @@ function renderDetail(id, params) {
     }${place.custom ? ` · <a href="#/aggiungi?modifica=${place.id}">Modifica</a>` : ''}</p>
     <div class="toolbar">${bandSwitch()}</div>
     ${table}
+    ${windowSection(place, band)}
     <div class="notice placeholder">
       <p><b>In arrivo</b>: grafico orario per modello con zero termico, vento e raffiche, nuvolosità; le tre quote affiancate; neve misurata e al suolo.</p>
     </div>
@@ -414,6 +512,8 @@ app.addEventListener('click', (e) => {
   if (bandBtn) return setPrefs({ band: bandBtn.dataset.band });
   const fav = e.target.closest('[data-fav]');
   if (fav) return toggleFav(fav.dataset.fav);
+  const asp = e.target.closest('[data-aspect]');
+  if (asp) return toggleAspect(asp.dataset.placeAspect, asp.dataset.aspect);
   if (e.target.closest('[data-retry]')) return refresh(true);
 });
 app.addEventListener('submit', (e) => {
