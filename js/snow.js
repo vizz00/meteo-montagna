@@ -17,6 +17,7 @@ export const HOURLY_VARS = [
   'wind_speed_700hPa',
   'wind_direction_700hPa',
   'cloud_cover',
+  'wind_gusts_10m',
 ];
 
 // Vento in quota da cui la neve soffice inizia a essere spostata (valore indicativo, km/h).
@@ -94,6 +95,8 @@ export function summarizePoint(point, elev, models = MODELS) {
       const ws = get('wind_speed_700hPa') || [];
       const wd = get('wind_direction_700hPa') || [];
       const cc = get('cloud_cover') || [];
+      const wg = get('wind_gusts_10m') || [];
+      let gustMax = null;
       let snow = 0;
       let precip = 0;
       let flMax = null;
@@ -130,6 +133,7 @@ export function summarizePoint(point, elev, models = MODELS) {
           if (t[i] != null) tNightMin = tNightMin == null ? t[i] : Math.min(tNightMin, t[i]);
           if (cc[i] != null) nightClouds.push(cc[i]);
         }
+        if (wg[i] != null) gustMax = gustMax == null ? wg[i] : Math.max(gustMax, wg[i]);
         if (fl[i] != null) flMax = flMax == null ? fl[i] : Math.max(flMax, fl[i]);
         if (ws[i] != null && (windMax == null || ws[i] > windMax)) {
           windMax = ws[i];
@@ -149,6 +153,7 @@ export function summarizePoint(point, elev, models = MODELS) {
         tMin: tvals.length ? Math.min(...tvals) : null,
         tMax: tvals.length ? Math.max(...tvals) : null,
         rain,
+        gustMax,
         transportHours,
         transportDir: transportHours ? (((Math.atan2(tx, ty) * 180) / Math.PI) + 360) % 360 : null,
         tNightMin,
@@ -174,6 +179,8 @@ export function summarizePoint(point, elev, models = MODELS) {
       cloud: median(vals.map((x) => x.cloud)),
       tMin: median(vals.map((x) => x.tMin)),
       tMax: median(vals.map((x) => x.tMax)),
+      rain: median(vals.map((x) => x.rain)),
+      gustMax: median(vals.map((x) => x.gustMax)),
     });
   }
   return { days, total: totalRange(days, models) };
@@ -237,4 +244,146 @@ export function nextSnowfall(summaries, threshold = 5) {
     return { startIndex: i, endIndex: end, best: ranked[0] };
   }
   return null;
+}
+
+// ---------- valori orari ----------
+
+/** Indice dell'ora corrente (ora italiana) nella lista `time` di Open-Meteo, o -1. */
+export function hourIndex(times, now = new Date()) {
+  const fmt = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit' });
+  const key = fmt.format(now).replace(' ', 'T').slice(0, 13); // "YYYY-MM-DDTHH"
+  return times.findIndex((t) => t.slice(0, 13) === key);
+}
+
+/**
+ * Condizioni dell'ora corrente (mediana tra i modelli) e neve stimata nelle ultime 24 ore.
+ * Restituisce { now: {temp, cloud, wind, windDir, gust, precip, snowing}, last24 } oppure null.
+ */
+export function pointNow(point, elev, models = MODELS, now = new Date()) {
+  const h = point.hourly;
+  const i = hourIndex(h.time, now);
+  if (i < 0) return null;
+  const at = (v) => median(models.map((m) => h[`${v}_${m.id}`]?.[i] ?? null));
+  const dirs = models.map((m) => h[`wind_direction_700hPa_${m.id}`]?.[i]).filter((x) => x != null);
+  let x = 0;
+  let y = 0;
+  for (const d of dirs) {
+    x += Math.sin((d * Math.PI) / 180);
+    y += Math.cos((d * Math.PI) / 180);
+  }
+  const last = models
+    .map((m) => {
+      const pr = h[`precipitation_${m.id}`];
+      if (!pr) return null;
+      let sum = 0;
+      let n = 0;
+      for (let k = Math.max(0, i - 24); k < i; k++) {
+        if (pr[k] == null) continue;
+        n++;
+        sum += hourlySnowCm(elev, pr[k], h[`temperature_2m_${m.id}`]?.[k], h[`freezing_level_height_${m.id}`]?.[k]);
+      }
+      return n >= 12 ? sum : null;
+    })
+    .filter((v) => v != null);
+  const temp = at('temperature_2m');
+  const precip = at('precipitation');
+  return {
+    now: {
+      temp,
+      cloud: at('cloud_cover'),
+      wind: at('wind_speed_700hPa'),
+      windDir: dirs.length ? (((Math.atan2(x, y) * 180) / Math.PI) + 360) % 360 : null,
+      gust: at('wind_gusts_10m'),
+      precip,
+      snowing: precip > 0.1 && snowFraction(elev, temp, at('freezing_level_height')) > 0.5,
+    },
+    last24: last.length ? median(last) : null,
+  };
+}
+
+/**
+ * Serie per i grafici del dettaglio, a passi di `step` ore, dall'ora corrente in avanti.
+ * Per ogni modello: neve cumulata, quota neve, temperatura, vento in quota, raffiche, nuvolosità,
+ * precipitazione (con la parte nevosa). Più la mediana tra i modelli.
+ */
+export function chartSeries(point, elev, models = MODELS, { step = 3, now = new Date() } = {}) {
+  const h = point.hourly;
+  let start = hourIndex(h.time, now);
+  if (start < 0) start = 0;
+  // Allinea all'inizio del passo (00, 03, 06…) così le righe dei giorni cadono sulla mezzanotte.
+  start = Math.max(0, start - (Number(h.time[start].slice(11, 13)) % step));
+  const times = [];
+  for (let i = start; i < h.time.length; i += step) times.push(h.time[i]);
+  const vars = ['snowTotal', 'snowLine', 'temp', 'wind', 'gust', 'cloud'];
+  const byModel = {};
+  for (const m of models) {
+    const g = (v) => h[`${v}_${m.id}`] || [];
+    const pr = g('precipitation');
+    if (!pr.length) continue;
+    const t = g('temperature_2m');
+    const fl = g('freezing_level_height');
+    const ws = g('wind_speed_700hPa');
+    const wg = g('wind_gusts_10m');
+    const cc = g('cloud_cover');
+    const out = { snowTotal: [], snowLine: [], temp: [], wind: [], gust: [], cloud: [], snow: [], rain: [] };
+    let cum = 0;
+    let alive = true;
+    for (let i = start; i < h.time.length; i += step) {
+      let sn = 0;
+      let rn = 0;
+      let valid = 0;
+      for (let k = i; k < Math.min(i + step, h.time.length); k++) {
+        if (pr[k] == null) continue;
+        valid++;
+        const s = hourlySnowCm(elev, pr[k], t[k], fl[k]);
+        sn += s;
+        rn += pr[k] * (1 - snowFraction(elev, t[k], fl[k]));
+      }
+      if (!valid) alive = false;
+      cum += sn;
+      const mean = (arr) => {
+        const v = [];
+        for (let k = i; k < Math.min(i + step, h.time.length); k++) if (arr[k] != null) v.push(arr[k]);
+        return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+      };
+      const maxOf = (arr) => {
+        let mx = null;
+        for (let k = i; k < Math.min(i + step, h.time.length); k++) if (arr[k] != null) mx = mx == null ? arr[k] : Math.max(mx, arr[k]);
+        return mx;
+      };
+      out.snowTotal.push(alive ? cum : null);
+      out.snow.push(valid ? sn : null);
+      out.rain.push(valid ? rn : null);
+      const f = mean(fl);
+      out.snowLine.push(f != null ? Math.max(0, f - 300) : null);
+      out.temp.push(mean(t));
+      out.wind.push(maxOf(ws));
+      out.gust.push(maxOf(wg));
+      out.cloud.push(mean(cc));
+    }
+    byModel[m.id] = out;
+  }
+  const ids = Object.keys(byModel);
+  const med = {};
+  for (const v of [...vars, 'snow', 'rain']) {
+    med[v] = times.map((_, j) => median(ids.map((id) => byModel[id][v][j])));
+  }
+  // Neve cumulata: mediana dei totali dei modelli ancora attivi; non scende mai quando un modello finisce.
+  let prev = 0;
+  med.snowTotal = med.snowTotal.map((x) => (prev = Math.max(prev, x ?? prev)));
+  // Direzione del vento mediana (media circolare) per le frecce.
+  med.windDir = times.map((_, j) => {
+    let x = 0;
+    let y = 0;
+    let n = 0;
+    for (const m of models) {
+      const d = h[`wind_direction_700hPa_${m.id}`]?.[start + j * step];
+      if (d == null) continue;
+      x += Math.sin((d * Math.PI) / 180);
+      y += Math.cos((d * Math.PI) / 180);
+      n++;
+    }
+    return n ? (((Math.atan2(x, y) * 180) / Math.PI) + 360) % 360 : null;
+  });
+  return { times, step, byModel, median: med };
 }
