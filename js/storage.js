@@ -6,7 +6,6 @@ const DEFAULTS = {
   band: 'meta',
   showAll: false,
   aspects: {}, // versanti scelti per posto: { [id]: ['N', 'NE'] }
-  view: 'neve', // panoramica: 'neve' | 'previsione'
   sort: 'mio', // 'mio' | 'd1_5' | 'd6_10'
   chart: 'snowTotal', // grafico scelto nel dettaglio
   chartModel: '', // '' = tutti (mediana), altrimenti id del modello

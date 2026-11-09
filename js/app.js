@@ -1,7 +1,7 @@
 import { PLACES, BANDS, REGIONS, externalLinks } from './places.js';
 import { MODELS, rangeText, roundCm, compass, totalRange } from './snow.js';
 import { loadForecast, loadDetail } from './forecast.js';
-import { lineChart, precipStrip } from './charts.js';
+import { lineChart, precipStrip, scrollCharts } from './charts.js';
 import { powderDays } from './powder.js';
 import { loadPrefs, savePrefs } from './storage.js';
 import { mountRadar, unmountRadar } from './radar.js';
@@ -13,7 +13,7 @@ import { evaluateWindows, STATUS_LABEL, SECTORS, RULES } from './window.js';
 import { renderSeason } from './season-view.js';
 
 const app = document.getElementById('app');
-const refreshBtn = document.getElementById('refresh');
+const ptr = document.getElementById('ptr');
 
 const state = {
   prefs: loadPrefs(),
@@ -22,6 +22,7 @@ const state = {
   loading: false,
   aval: null, // bollettini valanghe di oggi/domani
   avalArchive: null, // { day, data } quando si guarda un giorno passato
+  reorder: false, // riordino manuale dei preferiti aperto
 };
 
 // ---------- utilità ----------
@@ -203,7 +204,7 @@ async function refresh(force = false) {
   refreshAvalanche(force);
   state.loading = true;
   state.error = null;
-  refreshBtn.classList.add('spinning');
+  ptr.classList.add('spinning');
   render();
   try {
     state.forecast = await loadForecast(PLACES, { force });
@@ -212,12 +213,52 @@ async function refresh(force = false) {
     state.error = 'Non riesco a scaricare le previsioni. Controlla la connessione e riprova.';
   } finally {
     state.loading = false;
-    refreshBtn.classList.remove('spinning');
+    ptr.classList.remove('spinning');
+    setPull(0);
     render();
   }
 }
 
-refreshBtn.addEventListener('click', () => refresh(true));
+// Trascina giù dall'inizio della pagina per aggiornare (non sulle mappe).
+const PULL_MAX = 90;
+const PULL_GO = 64;
+let pull = null;
+function setPull(d, dragging = false) {
+  ptr.style.setProperty('--pull', `${d}px`);
+  ptr.style.setProperty('--rot', `${d * 3}deg`);
+  ptr.classList.toggle('show', d > 6);
+  ptr.classList.toggle('dragging', dragging);
+}
+window.addEventListener(
+  'touchstart',
+  (e) => {
+    if (window.scrollY > 0 || state.loading || e.touches.length !== 1) return;
+    if (e.target.closest?.('.leaflet-container, .chart-scroll, input, select')) return;
+    pull = { y0: e.touches[0].clientY, d: 0 };
+  },
+  { passive: true },
+);
+window.addEventListener(
+  'touchmove',
+  (e) => {
+    if (!pull) return;
+    pull.d = Math.max(0, Math.min(PULL_MAX, (e.touches[0].clientY - pull.y0) * 0.6));
+    if (window.scrollY > 0) pull.d = 0;
+    setPull(pull.d, true);
+    ptr.classList.toggle('ready', pull.d >= PULL_GO);
+  },
+  { passive: true },
+);
+window.addEventListener('touchend', () => {
+  if (!pull) return;
+  const go = pull.d >= PULL_GO;
+  pull = null;
+  ptr.classList.remove('ready');
+  if (go) {
+    setPull(PULL_GO);
+    refresh(true);
+  } else setPull(0);
+});
 
 // ---------- schermate ----------
 
@@ -246,24 +287,46 @@ function snowTotals(s) {
   return { d1_5: sumMedian(s.days, 0, 5), d6_10: sumMedian(s.days, 5, 10) };
 }
 
-function viewSwitch() {
-  const v = state.prefs.view;
-  return `<div class="segmented" role="radiogroup" aria-label="Vista">
-    <button type="button" role="radio" aria-checked="${v === 'neve'}" data-view="neve">Neve</button>
-    <button type="button" role="radio" aria-checked="${v === 'previsione'}" data-view="previsione">Previsione</button>
-  </div>`;
-}
-
 function sortSwitch() {
   const opts = [
     ['mio', 'I miei'],
-    ['d1_5', '1-5 giorni'],
-    ['d6_10', '6-10 giorni'],
+    ['d1_5', '1-5 gg'],
+    ['d6_10', '6-10 gg'],
   ];
-  return `<div class="chips" role="radiogroup" aria-label="Ordina per neve">
-    <span class="chips-l">Ordina</span>
-    ${opts.map(([id, l]) => `<button type="button" class="chip" role="radio" aria-checked="${state.prefs.sort === id}" data-sort="${id}">${l}</button>`).join('')}
+  const snowIco = `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICON.snow}</svg>`;
+  return `<div class="chips sortbar" role="radiogroup" aria-label="Ordina">
+    ${opts.map(([id, l]) => `<button type="button" class="chip" role="radio" aria-checked="${state.prefs.sort === id}" data-sort="${id}">${id === 'mio' ? '' : snowIco}${l}</button>`).join('')}
+    <button type="button" class="chip reorder-btn" data-reorder aria-label="Riordina i preferiti" title="Riordina i preferiti">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v16M8 4 4.5 7.5M8 4l3.5 3.5M16 20V4M16 20l-3.5-3.5M16 20l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
   </div>`;
+}
+
+// Riordino manuale: elenco semplice dei preferiti con frecce su/giù.
+function reorderList(favs) {
+  const arrow = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const rows = favs
+    .map(
+      (p, i) => `<li class="ro-row">
+        <span class="ro-name"><b>${esc(p.name)}</b><small>${p.elevations[overviewBand(p)]} m</small></span>
+        <button type="button" class="ro-btn" data-move="${p.id}" data-dir="-1" ${i === 0 ? 'disabled' : ''} aria-label="Sposta su ${esc(p.name)}">${arrow('M6 15l6-6 6 6')}</button>
+        <button type="button" class="ro-btn" data-move="${p.id}" data-dir="1" ${i === favs.length - 1 ? 'disabled' : ''} aria-label="Sposta giù ${esc(p.name)}">${arrow('M6 9l6 6 6-6')}</button>
+      </li>`,
+    )
+    .join('');
+  return `<section class="reorder">
+    <ul class="ro-list">${rows}</ul>
+    <button type="button" class="btn ro-done" data-reorder-done>Fatto</button>
+  </section>`;
+}
+
+function moveFav(id, dir) {
+  const favs = [...state.prefs.favorites];
+  const i = favs.indexOf(id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= favs.length) return;
+  [favs[i], favs[j]] = [favs[j], favs[i]];
+  setPrefs({ favorites: favs, sort: 'mio' });
 }
 
 function placeHead(place, band = overviewBand(place)) {
@@ -351,7 +414,30 @@ function dayIcon(day) {
   }</span>`;
 }
 
-// Scheda Previsione: adesso (temperatura, vento, raffiche) e 7 giorni con massima/minima.
+// Neve del giorno sotto l'icona: cm (mediana) solo se c'è, in colore neve.
+function snowDay(d) {
+  const cm = roundCm(d.snow?.median ?? 0);
+  return cm
+    ? `<span class="fc-cm" style="color:${snowColor(cm)}" title="${d.snow ? `${rangeText(d.snow)} cm tra i modelli` : ''}">${cm}<small>cm</small></span>`
+    : '<span class="fc-cm none" aria-hidden="true">·</span>';
+}
+
+// Striscia neve della scheda: ultime 24 ore, prossimi 1-5 e 6-10 giorni.
+function snowStrip(s) {
+  const t = snowTotals(s);
+  const cell = (k, v, range) => {
+    const on = (v ?? 0) >= 0.5;
+    return `<span class="ss-cell${on ? ' on' : ''}"${range ? ` title="${rangeText(range)} cm tra i modelli"` : ''}><span class="ss-k">${k}</span><b>${cmText(v)}<small>cm</small></b></span>`;
+  };
+  return `<div class="ss">
+    <svg class="ss-ico" viewBox="0 0 24 24" role="img" aria-label="Neve">${ICON.snow}</svg>
+    ${cell('24 h', s.last24)}
+    ${cell('1-5 gg', t.d1_5?.median, t.d1_5)}
+    ${cell('6-10 gg', t.d6_10?.median, t.d6_10)}
+  </div>`;
+}
+
+// Scheda unica dei Preferiti: adesso (temperatura, vento, raffiche) e 7 giorni con massima/minima.
 function forecastCard(place) {
   const band = overviewBand(place);
   const s = state.forecast?.byPlace[place.id]?.[band];
@@ -374,6 +460,7 @@ function forecastCard(place) {
         <span class="fc-max">${d.tMax != null ? Math.round(d.tMax) : '–'}°</span>
         <span class="fc-min">${d.tMin != null ? Math.round(d.tMin) : '–'}°</span>
         ${dayIcon(d)}
+        ${snowDay(d)}
         <span class="fc-w" title="Vento massimo in quota">${d.wind ? `${Math.round(d.wind.speed)}<small>${compass(d.wind.dir)}</small>` : '–'}</span>
         ${windowMark(wins[i])}
       </a>`,
@@ -382,12 +469,14 @@ function forecastCard(place) {
   return `<article class="place" data-place="${place.id}">
     ${placeHead(place)}
     ${now}
+    ${snowStrip(s)}
     <div class="fc-days">${cols}</div>
   </article>`;
 }
 
 function renderOverview() {
-  const favs = PLACES.filter((p) => isFav(p.id));
+  // Preferiti nell'ordine scelto (state.prefs.favorites).
+  const favs = state.prefs.favorites.map(placeById).filter(Boolean);
   // I posti solo "visti" (provvisori) non entrano nella panoramica finché non sono preferiti.
   const others = PLACES.filter((p) => !isFav(p.id) && !p.temp);
   const showAll = state.prefs.showAll || favs.length === 0;
@@ -407,7 +496,7 @@ function renderOverview() {
   } else if (!state.forecast) {
     body = `<p class="loading">Scarico le previsioni dei modelli…</p>`;
   } else {
-    body = visible.map(state.prefs.view === 'previsione' ? forecastCard : snowCard).join('');
+    body = visible.map(forecastCard).join('');
   }
 
   const status = state.forecast
@@ -417,10 +506,7 @@ function renderOverview() {
     : '';
 
   app.innerHTML = `
-    <div class="toolbar">
-      ${viewSwitch()}
-    </div>
-    ${state.prefs.view === 'neve' ? sortSwitch() : ''}
+    ${state.reorder && favs.length > 1 ? reorderList(favs) : sortSwitch()}
     ${status}
     ${state.error && state.forecast ? `<div class="notice">${esc(state.error)}</div>` : ''}
     ${body}
@@ -430,7 +516,8 @@ function renderOverview() {
     </div>
     <details class="explain">
       <summary>Come leggere</summary>
-      <p>Neve stimata alla quota scelta: mediana tra i modelli (${MODELS.map((m) => m.label).join(', ')}). Tieni il dito su un numero per l'intervallo tra i modelli. Dal 6° giorno restano solo ECMWF e GFS.</p>
+      <p>Riga neve: ultime 24 ore e totali dei prossimi 1-5 e 6-10 giorni; sotto ogni giorno i cm previsti. Con le frecce in alto riordini i preferiti, oppure ordini per neve prevista.</p>
+      <p>Neve stimata: mediana tra i modelli (${MODELS.map((m) => m.label).join(', ')}). Tieni il dito su un numero per l'intervallo tra i modelli. Dal 6° giorno restano solo ECMWF e GFS.</p>
       <p>Finestra buona: <span class="win win-aperta legend"></span> sì · <span class="win win-avvisi legend"></span> con avvisi · <span class="win win-chiusa legend"></span> chiusa · <span class="win win-meteo legend"></span> meteo non buono.</p>
       <p>Quota di metà per tutti i posti; nella pagina del posto si sceglie valle, metà o cima. Vento: in quota (circa 3000 m), km/h e provenienza. Raffiche: vicino al suolo.</p>
     </details>`;
@@ -511,8 +598,7 @@ function chartBlock(place, band) {
     <div class="chart-bar">${pick}<span class="chart-legend"><span class="lg-med${hl ? ' lg-hl' : ''}"></span>${
       hl ? esc(MODELS.find((m) => m.id === hl).label) : 'mediana'
     } · <span class="lg-model"></span> singoli modelli</span></div>
-    ${chart}
-    ${precipStrip(series, { highlight: hl })}
+    ${scrollCharts(chart, precipStrip(series, { highlight: hl }))}
     <p class="chart-foot"><span class="lg-snow"></span> neve <span class="lg-rain"></span> pioggia <span class="lg-cloud"></span> nuvole${
       cur.id === 'snowTotal' && lastVal != null ? ` · <b>${roundCm(lastVal)} cm</b> in 15 giorni (${hl ? 'modello scelto' : 'mediana'})` : ''
     }</p>
@@ -641,8 +727,16 @@ function render() {
 
 // Eventi delegati (i contenuti vengono ridisegnati a ogni cambio).
 app.addEventListener('click', (e) => {
-  const viewBtn = e.target.closest('[data-view]');
-  if (viewBtn) return setPrefs({ view: viewBtn.dataset.view });
+  if (e.target.closest('[data-reorder]')) {
+    state.reorder = true;
+    return render();
+  }
+  if (e.target.closest('[data-reorder-done]')) {
+    state.reorder = false;
+    return setPrefs({ sort: 'mio' });
+  }
+  const mv = e.target.closest('[data-move]');
+  if (mv) return moveFav(mv.dataset.move, Number(mv.dataset.dir));
   const sortBtn = e.target.closest('[data-sort]');
   if (sortBtn) return setPrefs({ sort: sortBtn.dataset.sort });
   const chartBtn = e.target.closest('[data-chart]');
