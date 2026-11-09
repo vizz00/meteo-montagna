@@ -1,12 +1,14 @@
 import { PLACES, BANDS, REGIONS, externalLinks } from './places.js';
-import { MODELS, rangeText, roundCm, compass, nextSnowfall } from './snow.js';
-import { loadForecast } from './forecast.js';
+import { MODELS, rangeText, roundCm, compass, totalRange } from './snow.js';
+import { loadForecast, loadDetail } from './forecast.js';
+import { lineChart, precipStrip } from './charts.js';
+import { powderDays } from './powder.js';
 import { loadPrefs, savePrefs } from './storage.js';
 import { mountRadar, unmountRadar } from './radar.js';
 import { renderAddPage } from './addplace.js';
 import { keepPlace } from './myplaces.js';
 import { loadAvalanche, romeDate } from './avalanche.js';
-import { avalBadge, avalPlaceBlock, avalPage } from './avalanche-view.js';
+import { avalPlaceBlock, avalPage } from './avalanche-view.js';
 import { evaluateWindows, STATUS_LABEL, SECTORS, RULES } from './window.js';
 import { renderSeason } from './season-view.js';
 
@@ -67,27 +69,6 @@ function snowColor(cm) {
   return 'var(--snow-1)';
 }
 
-function skyIcon(day) {
-  const snowing = (day.snow?.median ?? 0) >= 1;
-  const c = day.cloud;
-  let kind = 'n.d.';
-  if (snowing) kind = 'neve';
-  else if (c == null) kind = 'n.d.';
-  else if (c < 30) kind = 'sereno';
-  else if (c < 70) kind = 'variabile';
-  else kind = 'coperto';
-  const icons = {
-    sereno: '<circle cx="12" cy="12" r="5" fill="#ffd166"/>',
-    variabile:
-      '<circle cx="9" cy="9" r="4" fill="#ffd166"/><path d="M7 19h10a4 4 0 0 0 0-8 5 5 0 0 0-9.6 1.5A3.3 3.3 0 0 0 7 19z" fill="#c7d2ea"/>',
-    coperto: '<path d="M6 18h12a4 4 0 0 0 0-8 6 6 0 0 0-11.5 2A3 3 0 0 0 6 18z" fill="#8b98b8"/>',
-    neve:
-      '<path d="M6 14h12a4 4 0 0 0 0-8 6 6 0 0 0-11.5 2A3 3 0 0 0 6 14z" fill="#8b98b8"/><g fill="#e8eefc"><circle cx="8" cy="18" r="1.4"/><circle cx="12" cy="20" r="1.4"/><circle cx="16" cy="18" r="1.4"/></g>',
-    'n.d.': '',
-  };
-  return `<svg class="sky" viewBox="0 0 24 24" role="img" aria-label="${kind}"><title>${kind}</title>${icons[kind]}</svg>`;
-}
-
 // Icone delle righe (al posto delle etichette di testo).
 const ICON = {
   snow: '<path d="M12 2v20M3.5 7l17 10M20.5 7l-17 10M9 3.5l3 2.5 3-2.5M9 20.5l3-2.5 3 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -144,7 +125,7 @@ function aspectRose(loaded, mine = [], size = 64) {
   }">${paths}<text x="${r}" y="9" text-anchor="middle">N</text></svg>`;
 }
 
-function windowSection(place, band) {
+function windowSection(place, band, selDay = null) {
   const s = state.forecast?.byPlace[place.id]?.[band];
   if (!s) return '';
   const ws = windowsFor(place, band);
@@ -168,20 +149,24 @@ function windowSection(place, band) {
             w.slabSource === 'bollettino' ? 'dal bollettino' : 'stima dal vento in quota'
           }</span></div>`
         : '';
-      return `<li class="win-day">
-        <div class="win-head"><span class="cap">${longDay(d.date)}</span><span class="win-pill win-${w.status}">${STATUS_LABEL[w.status]}</span></div>
+      // Una riga per giorno: si apre per vedere condizioni e segnali.
+      const main = w.signals.find((x) => x.level === 'chiusa') || w.signals.find((x) => x.level === 'avviso' || x.level === 'versanti');
+      const why = w.status === 'meteo'
+        ? w.conditions.filter((c) => !c.bonus && !c.ok).map((c) => ({ sun: 'nuvoloso', calm: 'ventoso', freezing: 'zero termico alto' })[c.id] || c.label).join(', ')
+        : main ? main.text.split(':')[0] : '';
+      return `<li class="win-day" id="win-${d.date}"><details ${d.date === selDay ? 'open' : ''}>
+        <summary><span class="win win-${w.status}"></span><span class="cap">${weekday(d.date)} ${dayNum(d.date)}</span><span class="win-why">${esc(why)}</span></summary>
         <div class="win-body"><div><ul class="win-conds">${conds}</ul>${sigs ? `<ul class="win-sigs">${sigs}</ul>` : ''}</div>${rose}</div>
-      </li>`;
+      </details></li>`;
     })
     .join('');
   const picker = SECTORS.map(
     (a) => `<button type="button" class="aspect" data-aspect="${a}" data-place-aspect="${place.id}" aria-pressed="${mine.includes(a)}">${a}</button>`,
   ).join('');
   return `<section class="windows">
-    <h2>Finestra buona a ${place.elevations[band]} m</h2>
-    <p class="muted small">Regole SLF ed EAWS. Il bollettino ha l'ultima parola.</p>
-    <div class="aspect-pick"><span>I tuoi versanti</span><div class="aspects">${picker}</div></div>
+    <h2>Finestra buona <span class="muted small">a ${place.elevations[band]} m · regole SLF ed EAWS</span></h2>
     <ol class="win-list">${items}</ol>
+    <div class="aspect-pick"><span class="muted small">I tuoi versanti</span><div class="aspects">${picker}</div></div>
   </section>`;
 }
 
@@ -245,88 +230,159 @@ function bandSwitch() {
   </div>`;
 }
 
-function summaryCard(visible) {
-  const band = state.prefs.band;
-  const summaries = visible
-    .map((p) => ({ place: p, summary: state.forecast.byPlace[p.id]?.[band] }))
-    .filter((s) => s.summary);
-  if (!summaries.length) return '';
-  const next = nextSnowfall(summaries);
-  const bandLabel = BANDS.find((b) => b.id === band).label.toLowerCase();
-  if (!next) {
-    return `<section class="summary"><p class="summary-main">Nessuna nevicata di rilievo nei prossimi 7 giorni</p>
-      <p class="summary-sub">quota ${bandLabel}, posti mostrati</p></section>`;
-  }
-  const days = summaries[0].summary.days;
-  const a = days[next.startIndex].date;
-  const b = days[next.endIndex].date;
-  const when = a === b ? weekday(a) + ' ' + dayNum(a) : `${weekday(a)} ${dayNum(a)} – ${weekday(b)} ${dayNum(b)}`;
-  const elev = next.best.place.elevations[band];
-  return `<section class="summary">
-    <p class="summary-label">Prossima nevicata</p>
-    <p class="summary-main"><span class="cap">${esc(when)}</span>: ${rangeText(next.best)} cm a ${esc(next.best.place.name)}</p>
-    <p class="summary-sub">quota ${bandLabel} (${elev} m), intervallo tra i modelli</p>
-  </section>`;
+// ---------- panoramica (preferiti) ----------
+
+// Nei preferiti si usa sempre la quota di metà (o l'unica quota); la scelta resta nella pagina del posto.
+const overviewBand = (place) => (place.single ? 'valle' : 'meta');
+
+const sumMedian = (days, from, to) => {
+  const r = totalRange(days.slice(from, to));
+  return r ? { median: r.median, min: r.min, max: r.max } : null;
+};
+const cmText = (x) => (x == null ? '–' : `${roundCm(x)}`);
+
+// Totali neve per l'ordinamento e per la scheda: prossimi 1-5 e 6-10 giorni (mediana tra i modelli).
+function snowTotals(s) {
+  return { d1_5: sumMedian(s.days, 0, 5), d6_10: sumMedian(s.days, 5, 10) };
 }
 
-function dayCell(place, day, win) {
-  const med = day.snow ? roundCm(day.snow.median) : null;
-  const max = day.snow ? day.snow.max : 0;
-  const scale = 40; // cm a cui la barra è piena
-  const hMax = Math.min(100, (max / scale) * 100);
-  const hMed = Math.min(100, ((day.snow?.median ?? 0) / scale) * 100);
-  const fl = day.freezingMax != null ? `${Math.round(day.freezingMax / 100) * 100}` : 'n.d.';
-  const wind = day.wind ? `${Math.round(day.wind.speed)}<small> ${compass(day.wind.dir)}</small>` : 'n.d.';
-  const title = day.snow
-    ? `${longDay(day.date)}: neve ${rangeText(day.snow)} cm (${day.nModels} modelli)`
-    : `${longDay(day.date)}: nessun dato`;
-  return `<a class="day" href="#/posto/${place.id}?giorno=${day.date}" title="${esc(title)}">
-    <span class="day-name">${weekday(day.date)} <b>${dayNum(day.date)}</b></span>
-    ${skyIcon(day)}
-    <span class="bar" aria-hidden="true">
-      <span class="bar-max" style="height:${hMax}%;background:${snowColor(max)}"></span>
-      <span class="bar-med" style="height:${hMed}%;background:${snowColor(day.snow?.median ?? 0)}"></span>
-    </span>
-    <span class="snow ${med ? 'has-snow' : ''}">${day.snow ? rangeText(day.snow) : 'n.d.'}</span>
-    <span class="fl" title="Zero termico massimo">${fl}</span>
-    <span class="wind" title="Vento massimo in quota (700 hPa, circa 3000 m), km/h">${wind}</span>
-    ${windowMark(win)}
-  </a>`;
+function viewSwitch() {
+  const v = state.prefs.view;
+  return `<div class="segmented" role="radiogroup" aria-label="Vista">
+    <button type="button" role="radio" aria-checked="${v === 'neve'}" data-view="neve">Neve</button>
+    <button type="button" role="radio" aria-checked="${v === 'previsione'}" data-view="previsione">Previsione</button>
+  </div>`;
 }
 
-function placeCard(place) {
-  const band = state.prefs.band;
-  const s = state.forecast?.byPlace[place.id]?.[band];
+function sortSwitch() {
+  const opts = [
+    ['mio', 'I miei'],
+    ['d1_5', '1-5 giorni'],
+    ['d6_10', '6-10 giorni'],
+  ];
+  return `<div class="chips" role="radiogroup" aria-label="Ordina per neve">
+    <span class="chips-l">Ordina</span>
+    ${opts.map(([id, l]) => `<button type="button" class="chip" role="radio" aria-checked="${state.prefs.sort === id}" data-sort="${id}">${l}</button>`).join('')}
+  </div>`;
+}
+
+function placeHead(place, band = overviewBand(place)) {
   const region = REGIONS[place.region];
-  const elev = place.elevations[band];
   const fav = isFav(place.id);
-  const total = s?.total;
-  const wins = windowsFor(place, band);
-  return `<article class="place" data-place="${place.id}">
-    <header class="place-head">
-      <button type="button" class="star" data-fav="${place.id}" aria-pressed="${fav}" aria-label="${fav ? 'Togli dai preferiti' : 'Aggiungi ai preferiti'}">${fav ? '★' : '☆'}</button>
-      <div class="place-title">
-        <h2><a href="#/posto/${place.id}">${esc(place.name)}</a></h2>
-        <p class="place-sub">${place.single ? 'Quota' : BANDS.find((b) => b.id === band).label} ${elev} m · ${esc(region.name)}</p>
+  return `<header class="place-head">
+    <button type="button" class="star" data-fav="${place.id}" aria-pressed="${fav}" aria-label="${fav ? 'Togli dai preferiti' : 'Aggiungi ai preferiti'}">${fav ? '★' : '☆'}</button>
+    <a class="place-title" href="#/posto/${place.id}">
+      <h2>${esc(place.name)}</h2>
+      <p class="place-sub">${place.elevations[band]} m · ${esc(region?.name || '')}</p>
+    </a>
+    <a class="go" href="#/posto/${place.id}" aria-label="Apri ${esc(place.name)}">›</a>
+  </header>`;
+}
+
+
+const DAY_LETTER = ['D', 'L', 'M', 'M', 'G', 'V', 'S'];
+const isWeekend = (iso) => [0, 6].includes(dayDate(iso).getDay());
+
+const POWDER_SHORT = { ottima: 'Ottima', buona: 'Buona', discreta: 'Discreta', no: '' };
+
+// Scheda Neve: ultime 24 ore, poi barre dei prossimi 10 giorni con i totali 1-5 e 6-10.
+// Nel dettaglio (detail) usa la quota scelta e aggiunge la qualità della polvere.
+function snowCard(place, { detail = false } = {}) {
+  const band = detail && !place.single ? state.prefs.band : overviewBand(place);
+  const s = state.forecast?.byPlace[place.id]?.[band];
+  if (!s) return `<article class="place">${placeHead(place, band)}<p class="muted pad">Dati non disponibili</p></article>`;
+  const t = snowTotals(s);
+  const days = s.days.slice(0, 10);
+  const maxCm = Math.max(10, ...days.map((d) => d.snow?.median ?? 0));
+  const pw = detail ? powderDays([...(s.past || []), ...s.days], place.elevations[band], (s.past || []).length) : [];
+  const cols = days
+    .map((d, i) => {
+      const cm = d.snow?.median ?? 0;
+      const h = Math.max(cm >= 0.5 ? 3 : 2, (cm / maxCm) * (detail ? 56 : 40));
+      const title = `${longDay(d.date)}: ${d.snow ? rangeText(d.snow) : 'n.d.'} cm tra i modelli`;
+      const p = pw[i];
+      return `<a class="sc-day${i === 5 ? ' sep' : ''}" href="#/posto/${place.id}?giorno=${d.date}" title="${esc(title)}">
+        <span class="sc-cm ${roundCm(cm) ? 'on' : ''}">${roundCm(cm)}</span>
+        <span class="sc-bar" style="height:${h}px;background:${cm >= 0.5 ? snowColor(cm) : 'var(--line)'}"></span>
+        <span class="sc-wd ${isWeekend(d.date) ? 'we' : ''}">${DAY_LETTER[dayDate(d.date).getDay()]}</span>
+        <span class="sc-dn ${isWeekend(d.date) ? 'we' : ''}">${dayNum(d.date)}</span>
+        ${detail ? `<span class="pw pw-${p?.level || 'nd'}" title="Polvere: ${p?.label || 'n.d.'}"></span>` : ''}
+      </a>`;
+    })
+    .join('');
+  return `<article class="place${detail ? '' : ' compact'}" data-place="${place.id}">
+    ${placeHead(place, band)}
+    <div class="sc">
+      <div class="sc-last">
+        <span class="sc-k">Ultime 24 h</span>
+        <span class="sc-big">${cmText(s.last24)}<small>cm</small></span>
       </div>
-      <div class="place-total" title="Totale 7 giorni: intervallo tra i modelli che coprono tutta la settimana">
-        <span class="total-num">${total ? rangeText(total) : 'n.d.'}</span><span class="total-unit">cm</span>
-        <span class="total-label">7 giorni</span>
+      <div class="sc-next">
+        <div class="sc-tot">
+          <span><span class="sc-k">1-5 giorni</span><b class="${(t.d1_5?.median ?? 0) >= 0.5 ? 'hot' : ''}" title="${t.d1_5 ? `${rangeText(t.d1_5)} cm tra i modelli` : ''}">${cmText(t.d1_5?.median)} cm</b></span>
+          <span><span class="sc-k">6-10 giorni</span><b title="${t.d6_10 ? `${rangeText(t.d6_10)} cm tra i modelli` : ''}">${cmText(t.d6_10?.median)} cm</b></span>
+        </div>
+        <div class="sc-days">${cols}</div>
+        ${detail ? `<p class="pw-legend"><span class="pw-k">Polvere</span><span class="pw pw-ottima"></span>ottima <span class="pw pw-buona"></span>buona <span class="pw pw-discreta"></span>discreta <span class="pw pw-no"></span>niente</p>` : ''}
       </div>
-    </header>
-    <div class="days" role="list">
-      <div class="row-labels" aria-hidden="true">
-        <span class="day-name">&nbsp;</span><span class="sky-sp"></span><span class="bar-sp"></span>
-        <span class="snow">${icon('snow', 'Neve (cm)')}</span><span class="fl">${icon('freezing', 'Zero termico (m)')}</span><span class="wind">${icon('wind', 'Vento in quota (km/h)')}</span><span class="win-l">${icon('window', 'Finestra buona')}</span>
-      </div>
-      ${s ? s.days.map((d, i) => dayCell(place, d, wins?.[i])).join('') : '<p class="muted">Dati non disponibili</p>'}
     </div>
-    <footer class="place-foot">
-      ${avalBadge(place, state.aval)}
-      <span class="links">${externalLinks(place)
-        .map((l) => `<a href="${l.url}" target="_blank" rel="noopener">${l.label}</a>`)
-        .join('')}</span>
-    </footer>
+  </article>`;
+}
+
+// Icona del giorno per la scheda Previsione: neve, pioggia, sole, nuvole, più il vento se forte.
+function dayIcon(day) {
+  const snow = (day.snow?.median ?? 0) >= 1;
+  const rain = (day.rain ?? 0) >= 1;
+  const windy = (day.wind?.speed ?? 0) >= 40;
+  const c = day.cloud;
+  const k = snow ? 'neve' : rain ? 'pioggia' : c == null ? 'nd' : c < 30 ? 'sereno' : c < 70 ? 'variabile' : 'coperto';
+  const cloud = (fill, dy = 0) => `<path d="M6 ${16 + dy}h12a4 4 0 0 0 0-8 6 6 0 0 0-11.5 2A3 3 0 0 0 6 ${16 + dy}z" fill="${fill}"/>`;
+  const shapes = {
+    sereno: '<circle cx="12" cy="12" r="5" fill="#ffd166"/>',
+    variabile: '<circle cx="9" cy="9" r="4" fill="#ffd166"/><path d="M7 19h10a4 4 0 0 0 0-8 5 5 0 0 0-9.6 1.5A3.3 3.3 0 0 0 7 19z" fill="#c7d2ea"/>',
+    coperto: cloud('#8b98b8', 2),
+    neve: `${cloud('#8b98b8', -2)}<g fill="#9fd0ff"><circle cx="8" cy="19" r="1.5"/><circle cx="12" cy="21" r="1.5"/><circle cx="16" cy="19" r="1.5"/></g>`,
+    pioggia: `${cloud('#8b98b8', -2)}<path d="M8 17l-1 4M12 17l-1 4M16 17l-1 4" stroke="#7fd6a4" stroke-width="1.6" stroke-linecap="round"/>`,
+    nd: '',
+  };
+  const label = `${k}${windy ? ', vento forte' : ''}`;
+  return `<span class="fc-ico" title="${label}"><svg viewBox="0 0 24 24" role="img" aria-label="${label}">${shapes[k]}</svg>${
+    windy ? `<svg class="fc-wind" viewBox="0 0 24 24" aria-hidden="true">${ICON.wind}</svg>` : ''
+  }</span>`;
+}
+
+// Scheda Previsione: adesso (temperatura, vento, raffiche) e 7 giorni con massima/minima.
+function forecastCard(place) {
+  const band = overviewBand(place);
+  const s = state.forecast?.byPlace[place.id]?.[band];
+  if (!s) return `<article class="place">${placeHead(place)}<p class="muted pad">Dati non disponibili</p></article>`;
+  const n = s.now;
+  const wins = windowsFor(place, band) || [];
+  const nowDay = { snow: { median: n?.snowing ? 1 : 0 }, rain: n && !n.snowing && n.precip > 0.1 ? 1 : 0, cloud: n?.cloud, wind: { speed: n?.wind } };
+  const now = n
+    ? `<div class="fc-now">
+        <div class="fc-now-l">${dayIcon(nowDay)}<span class="fc-temp">${Math.round(n.temp)}<small>°C</small></span></div>
+        <div class="fc-now-r"><span class="fc-wind-now">${icon('wind', 'Vento in quota')} <b>${Math.round(n.wind ?? 0)}</b> km/h ${compass(n.windDir)}</span>
+        ${n.gust != null ? `<span class="muted">raffiche ${Math.round(n.gust)} km/h</span>` : ''}</div>
+      </div>`
+    : '';
+  const cols = s.days
+    .slice(0, 7)
+    .map(
+      (d, i) => `<a class="fc-day" href="#/posto/${place.id}?giorno=${d.date}">
+        <span class="fc-wd ${isWeekend(d.date) ? 'we' : ''}">${i === 0 ? 'Oggi' : `${weekday(d.date)} ${dayNum(d.date)}`}</span>
+        <span class="fc-max">${d.tMax != null ? Math.round(d.tMax) : '–'}°</span>
+        <span class="fc-min">${d.tMin != null ? Math.round(d.tMin) : '–'}°</span>
+        ${dayIcon(d)}
+        <span class="fc-w" title="Vento massimo in quota">${d.wind ? `${Math.round(d.wind.speed)}<small>${compass(d.wind.dir)}</small>` : '–'}</span>
+        ${windowMark(wins[i])}
+      </a>`,
+    )
+    .join('');
+  return `<article class="place" data-place="${place.id}">
+    ${placeHead(place)}
+    ${now}
+    <div class="fc-days">${cols}</div>
   </article>`;
 }
 
@@ -335,7 +391,15 @@ function renderOverview() {
   // I posti solo "visti" (provvisori) non entrano nella panoramica finché non sono preferiti.
   const others = PLACES.filter((p) => !isFav(p.id) && !p.temp);
   const showAll = state.prefs.showAll || favs.length === 0;
-  const visible = showAll ? [...favs, ...others] : favs;
+  let visible = showAll ? [...favs, ...others] : favs;
+  const sort = state.prefs.sort;
+  if (state.forecast && sort !== 'mio') {
+    const val = (p) => {
+      const s = state.forecast.byPlace[p.id]?.[overviewBand(p)];
+      return s ? snowTotals(s)[sort]?.median ?? -1 : -1;
+    };
+    visible = [...visible].sort((a, b) => val(b) - val(a));
+  }
 
   let body = '';
   if (state.error && !state.forecast) {
@@ -343,7 +407,7 @@ function renderOverview() {
   } else if (!state.forecast) {
     body = `<p class="loading">Scarico le previsioni dei modelli…</p>`;
   } else {
-    body = `${summaryCard(visible)}${visible.map(placeCard).join('')}`;
+    body = visible.map(state.prefs.view === 'previsione' ? forecastCard : snowCard).join('');
   }
 
   const status = state.forecast
@@ -354,18 +418,21 @@ function renderOverview() {
 
   app.innerHTML = `
     <div class="toolbar">
-      ${bandSwitch()}
-      <a class="btn ghost add-place" href="#/aggiungi">+ Aggiungi posto</a>
-      <label class="toggle"><input type="checkbox" data-showall ${showAll ? 'checked' : ''} ${favs.length ? '' : 'disabled'}> Mostra anche i non preferiti</label>
+      ${viewSwitch()}
     </div>
+    ${state.prefs.view === 'neve' ? sortSwitch() : ''}
     ${status}
     ${state.error && state.forecast ? `<div class="notice">${esc(state.error)}</div>` : ''}
     ${body}
+    <div class="toolbar end">
+      <a class="btn ghost add-place" href="#/aggiungi">+ Aggiungi posto</a>
+      <label class="toggle"><input type="checkbox" data-showall ${showAll ? 'checked' : ''} ${favs.length ? '' : 'disabled'}> Anche i non preferiti</label>
+    </div>
     <details class="explain">
       <summary>Come leggere</summary>
-      <p>${icon('snow', 'Neve')} neve stimata in cm, intervallo tra i modelli (${MODELS.map((m) => m.label).join(', ')}). Barra piena = mediana, chiara = modello più nevoso.</p>
-      <p>${icon('freezing', 'Zero termico')} zero termico massimo in metri. ${icon('wind', 'Vento')} vento massimo in quota (circa 3000 m), km/h e provenienza.</p>
-      <p>${icon('window', 'Finestra buona')} finestra buona: <span class="win win-aperta legend"></span> sì · <span class="win win-avvisi legend"></span> con avvisi · <span class="win win-chiusa legend"></span> chiusa · <span class="win win-meteo legend"></span> meteo non buono. Tocca un giorno per il perché.</p>
+      <p>Neve stimata alla quota scelta: mediana tra i modelli (${MODELS.map((m) => m.label).join(', ')}). Tieni il dito su un numero per l'intervallo tra i modelli. Dal 6° giorno restano solo ECMWF e GFS.</p>
+      <p>Finestra buona: <span class="win win-aperta legend"></span> sì · <span class="win win-avvisi legend"></span> con avvisi · <span class="win win-chiusa legend"></span> chiusa · <span class="win win-meteo legend"></span> meteo non buono.</p>
+      <p>Quota di metà per tutti i posti; nella pagina del posto si sceglie valle, metà o cima. Vento: in quota (circa 3000 m), km/h e provenienza. Raffiche: vicino al suolo.</p>
     </details>`;
 }
 
@@ -376,49 +443,92 @@ function favButton(place) {
   }</button>`;
 }
 
+// ---------- dettaglio del posto: grafici per modello ----------
+
+const CHARTS = [
+  { id: 'snowTotal', label: 'Neve totale', unit: 'cm', min: 0, minSpan: 10 },
+  { id: 'snowLine', label: 'Quota neve', unit: 'm', min: 0, ref: 'elev' },
+  { id: 'temp', label: 'Temperatura', unit: '°C', ref: 0 },
+  { id: 'wind', label: 'Vento in quota', unit: 'km/h', min: 0, minSpan: 40, bands: true, arrows: true },
+  { id: 'gust', label: 'Raffiche', unit: 'km/h', min: 0, minSpan: 40, bands: true },
+  { id: 'cloud', label: 'Nuvole', unit: '%', min: 0, max: 100 },
+];
+const WIND_BANDS = [
+  { from: 0, to: 20, label: 'debole', cls: 'b-light' },
+  { from: 20, to: 40, label: 'moderato', cls: 'b-mod' },
+  { from: 40, to: 60, label: 'forte', cls: 'b-strong' },
+  { from: 60, to: 999, label: 'molto forte', cls: 'b-vstrong' },
+];
+
+async function ensureDetail(place, band) {
+  const key = `${place.id}|${band}|${place.elevations[band]}`;
+  if (state.detail?.key === key && (state.detail.data || state.detail.loading)) return;
+  state.detail = { key, loading: true, data: null, error: null };
+  try {
+    const data = await loadDetail(place, band);
+    if (state.detail.key === key) state.detail = { key, loading: false, data, error: null };
+  } catch (err) {
+    console.error(err);
+    if (state.detail.key === key) state.detail = { key, loading: false, data: null, error: 'Non riesco a scaricare i grafici.' };
+  }
+  if (route().tab === 'posto') render();
+}
+
+function chartBlock(place, band) {
+  const d = state.detail;
+  if (!d || d.loading) return '<p class="loading">Scarico i grafici a 15 giorni…</p>';
+  if (d.error) return `<p class="muted">${esc(d.error)}</p>`;
+  const series = d.data.series;
+  const cur = CHARTS.find((c) => c.id === state.prefs.chart) || CHARTS[0];
+  const hl = state.prefs.chartModel && series.byModel[state.prefs.chartModel] ? state.prefs.chartModel : '';
+  const elev = d.data.elev;
+  const ref = cur.ref === 'elev' ? { value: elev, label: `quota ${elev} m` } : cur.ref === 0 ? { value: 0, label: '0 °C' } : null;
+  const chart = lineChart(series, {
+    key: cur.id,
+    label: cur.label,
+    min: cur.min,
+    max: cur.max,
+    minSpan: cur.minSpan,
+    ref,
+    bands: cur.bands ? WIND_BANDS : null,
+    arrows: cur.arrows ? series.median.windDir : null,
+    highlight: hl,
+    fmt: cur.id === 'snowLine' ? (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v)) : null,
+  });
+  // Valore "in fondo" della linea mediana (o del modello scelto) per la legenda.
+  const src = hl ? series.byModel[hl][cur.id] : series.median[cur.id];
+  const lastVal = [...src].reverse().find((v) => v != null);
+  const tabs = CHARTS.map(
+    (c) => `<button type="button" class="chip" role="tab" aria-selected="${c.id === cur.id}" data-chart="${c.id}">${c.label}</button>`,
+  ).join('');
+  const models = MODELS.filter((m) => series.byModel[m.id]);
+  const pick = `<label class="model-pick">Modello <select data-chart-model>
+      <option value="">Tutti (mediana)</option>
+      ${models.map((m) => `<option value="${m.id}" ${m.id === hl ? 'selected' : ''}>${m.label}</option>`).join('')}
+    </select></label>`;
+  return `<section class="charts">
+    <div class="chips scroll" role="tablist" aria-label="Grafico">${tabs}</div>
+    <div class="chart-bar">${pick}<span class="chart-legend"><span class="lg-med${hl ? ' lg-hl' : ''}"></span>${
+      hl ? esc(MODELS.find((m) => m.id === hl).label) : 'mediana'
+    } · <span class="lg-model"></span> singoli modelli</span></div>
+    ${chart}
+    ${precipStrip(series, { highlight: hl })}
+    <p class="chart-foot"><span class="lg-snow"></span> neve <span class="lg-rain"></span> pioggia <span class="lg-cloud"></span> nuvole${
+      cur.id === 'snowTotal' && lastVal != null ? ` · <b>${roundCm(lastVal)} cm</b> in 15 giorni (${hl ? 'modello scelto' : 'mediana'})` : ''
+    }</p>
+  </section>`;
+}
+
 function renderDetail(id, params) {
   const place = placeById(id);
   if (!place) return renderNotFound();
-  const band = state.prefs.band;
+  const band = place.single ? 'valle' : state.prefs.band;
+  ensureDetail(place, band);
   const s = state.forecast?.byPlace[place.id]?.[band];
-  const selDay = params.get('giorno');
-  const elev = place.elevations[band];
-
-  let table = '<p class="loading">Scarico le previsioni…</p>';
-  if (s) {
-    const days = s.days;
-    const header = days
-      .map((d) => `<th class="${d.date === selDay ? 'sel' : ''}">${weekday(d.date)} ${dayNum(d.date)}</th>`)
-      .join('');
-    const rows = MODELS.map((m) => {
-      const cells = days
-        .map((d) => {
-          const v = d.models[m.id];
-          return `<td class="${d.date === selDay ? 'sel' : ''}">${v ? roundCm(v.snow) : '<span class="muted">–</span>'}</td>`;
-        })
-        .join('');
-      return `<tr><th scope="row">${m.label}</th>${cells}</tr>`;
-    }).join('');
-    const fl = days
-      .map((d) => `<td class="${d.date === selDay ? 'sel' : ''}">${d.freezingMax != null ? Math.round(d.freezingMax / 100) * 100 : 'n.d.'}</td>`)
-      .join('');
-    const temps = days
-      .map(
-        (d) =>
-          `<td class="${d.date === selDay ? 'sel' : ''}">${d.tMin != null ? `${Math.round(d.tMin)}/${Math.round(d.tMax)}` : 'n.d.'}</td>`,
-      )
-      .join('');
-    table = `<div class="table-wrap"><table class="models">
-      <caption>Neve stimata a ${elev} m per modello (cm)</caption>
-      <thead><tr><th></th>${header}</tr></thead>
-      <tbody>${rows}
-        <tr class="sep"><th scope="row">Zero termico max (m)</th>${fl}</tr>
-        <tr><th scope="row">Temp. min/max (°C)</th>${temps}</tr>
-      </tbody></table></div>`;
-  }
+  const card = s ? snowCard(place, { detail: true }) : '';
 
   app.innerHTML = `
-    <p class="back"><a href="#/">← Panoramica</a></p>
+    <p class="back"><a href="#/">← Preferiti</a></p>
     <div class="detail-head">
       <h1 class="page-title">${esc(place.name)}</h1>
       ${favButton(place)}
@@ -431,15 +541,18 @@ function renderDetail(id, params) {
           }`
     }${place.custom ? ` · <a href="#/aggiungi?modifica=${place.id}">Modifica</a>` : ''}</p>
     ${place.single ? '' : `<div class="toolbar">${bandSwitch()}</div>`}
-    ${table}
-    ${windowSection(place, band)}
-    <div class="notice placeholder">
-      <p><b>In arrivo</b>: grafico orario per modello con zero termico, vento e raffiche, nuvolosità; le tre quote affiancate; neve misurata e al suolo.</p>
-    </div>
+    <div class="detail-card">${card.replace(/<header[\s\S]*?<\/header>/, '').replace(/<footer[\s\S]*<\/footer>/, '')}</div>
+    ${chartBlock(place, band)}
+    ${windowSection(place, band, params.get('giorno'))}
     ${avalPlaceBlock(place, state.aval)}
     <p class="links-row">${externalLinks(place)
       .map((l) => `<a class="btn ghost" href="${l.url}" target="_blank" rel="noopener">${l.label} ↗</a>`)
       .join('')}</p>`;
+  const sel = params.get('giorno');
+  if (sel && state.scrolledDay !== location.hash) {
+    state.scrolledDay = location.hash;
+    requestAnimationFrame(() => document.getElementById(`win-${sel}`)?.scrollIntoView({ block: 'center' }));
+  }
 }
 
 function renderPlaceholder(title, text, links = []) {
@@ -532,6 +645,12 @@ function render() {
 
 // Eventi delegati (i contenuti vengono ridisegnati a ogni cambio).
 app.addEventListener('click', (e) => {
+  const viewBtn = e.target.closest('[data-view]');
+  if (viewBtn) return setPrefs({ view: viewBtn.dataset.view });
+  const sortBtn = e.target.closest('[data-sort]');
+  if (sortBtn) return setPrefs({ sort: sortBtn.dataset.sort });
+  const chartBtn = e.target.closest('[data-chart]');
+  if (chartBtn) return setPrefs({ chart: chartBtn.dataset.chart });
   const bandBtn = e.target.closest('[data-band]');
   if (bandBtn) return setPrefs({ band: bandBtn.dataset.band });
   const fav = e.target.closest('[data-fav]');
@@ -548,6 +667,7 @@ app.addEventListener('submit', (e) => {
 });
 app.addEventListener('change', (e) => {
   if (e.target.matches('[data-showall]')) setPrefs({ showAll: e.target.checked });
+  if (e.target.matches('[data-chart-model]')) setPrefs({ chartModel: e.target.value });
 });
 
 window.addEventListener('hashchange', () => {
