@@ -53,11 +53,25 @@ export function savePlace(data) {
     regionName: data.regionName || regionName(data.region) || 'Altra zona',
     custom: true,
   };
+  if (data.single) place.single = true;
+  // Provvisorio: visto senza salvarlo nei preferiti. Ne resta uno solo alla volta.
+  if (existing ? existing.temp : data.temp) {
+    place.temp = true;
+    for (const p of PLACES.filter((q) => q.temp && q !== existing)) PLACES.splice(PLACES.indexOf(p), 1);
+  }
   ensureRegion(place);
   if (existing) PLACES.splice(PLACES.indexOf(existing), 1, place);
   else PLACES.push(place);
   write();
   return place;
+}
+
+/** Un posto provvisorio messo nei preferiti diventa definitivo. */
+export function keepPlace(id) {
+  const p = getCustomPlace(id);
+  if (!p?.temp) return;
+  delete p.temp;
+  write();
 }
 
 export function deletePlace(id) {
