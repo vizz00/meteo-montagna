@@ -1,0 +1,54 @@
+// Posti iniziali e quote (dal brief di progetto, 9/11/2026).
+// Per aggiungere un posto basta aggiungere un oggetto a questa lista.
+export const PLACES = [
+  {
+    id: 'cervinia',
+    name: 'Cervinia',
+    lat: 45.936,
+    lon: 7.631,
+    elevations: { valle: 2050, meta: 2800, cima: 3480 },
+    cimaLabel: 'Plateau Rosa',
+    region: 'IT-23',
+  },
+  {
+    id: 'champoluc',
+    name: 'Champoluc',
+    lat: 45.83,
+    lon: 7.727,
+    elevations: { valle: 1570, meta: 2400, cima: 3000 },
+    region: 'IT-23',
+  },
+  {
+    id: 'alagna',
+    name: 'Alagna',
+    lat: 45.854,
+    lon: 7.938,
+    elevations: { valle: 1190, meta: 2200, cima: 3275 },
+    cimaLabel: 'Punta Indren',
+    region: 'IT-21',
+  },
+];
+
+export const BANDS = [
+  { id: 'valle', label: 'Valle' },
+  { id: 'meta', label: 'Metà' },
+  { id: 'cima', label: 'Cima' },
+];
+
+export const REGIONS = {
+  'IT-23': { name: "Valle d'Aosta", avalancheUrl: 'https://bollettini.aineva.it/', avalancheSource: 'AINEVA' },
+  'IT-21': { name: 'Piemonte', avalancheUrl: 'https://bollettini.aineva.it/', avalancheSource: 'AINEVA' },
+  'IT-25': { name: 'Lombardia', avalancheUrl: 'https://bollettini.aineva.it/', avalancheSource: 'AINEVA' },
+  CH: { name: 'Svizzera', avalancheUrl: 'https://www.slf.ch/it/bollettino-valanghe-e-situazione-nivologica/', avalancheSource: 'SLF' },
+};
+
+// Link esterni centrati sul posto (siti senza dati aperti).
+export function externalLinks(place) {
+  const { lat, lon } = place;
+  return [
+    { label: 'Meteoblue', url: `https://www.meteoblue.com/it/tempo/settimana/${lat.toFixed(3)}N${lon.toFixed(3)}E` },
+    { label: 'Windy', url: `https://www.windy.com/${lat}/${lon}?${lat},${lon},11` },
+    { label: 'WePowder', url: 'https://wepowder.com/' },
+    { label: 'OpenSnow', url: 'https://opensnow.com/' },
+  ];
+}
