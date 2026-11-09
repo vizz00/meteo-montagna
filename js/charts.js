@@ -134,7 +134,7 @@ export function lineChart(series, opts) {
 export function scrollCharts(chart, strip) {
   if (typeof chart === 'string') return chart + (strip || '');
   return `<div class="chart-wrap">
-    <div class="chart-scroll"><div class="chart-inner" style="width:${((chart.width / W) * 100).toFixed(2)}%">${chart.plot}${strip || ''}</div></div>
+    <div class="chart-scroll" data-keep-scroll="chart"><div class="chart-inner" style="width:${((chart.width / W) * 100).toFixed(2)}%">${chart.plot}${strip || ''}</div></div>
     <div class="chart-yax-box">${chart.axis}</div>
     ${chart.refLabel ? `<div class="ref-box" style="aspect-ratio:${W} ${chart.height}">${chart.refLabel}</div>` : ''}
   </div>`;

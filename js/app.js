@@ -525,9 +525,8 @@ function renderOverview() {
 
 function favButton(place) {
   const fav = isFav(place.id);
-  return `<button type="button" class="btn ${fav ? 'ghost' : ''} fav-btn" data-fav="${place.id}" aria-pressed="${fav}">${
-    fav ? '★ Nei preferiti' : '☆ Aggiungi ai preferiti'
-  }</button>`;
+  const label = fav ? 'Togli dai preferiti' : 'Aggiungi ai preferiti';
+  return `<button type="button" class="fav-btn" data-fav="${place.id}" aria-pressed="${fav}" aria-label="${label}" title="${label}">${fav ? '★' : '☆'}</button>`;
 }
 
 // ---------- dettaglio del posto: grafici per modello ----------
@@ -594,7 +593,7 @@ function chartBlock(place, band) {
       ${models.map((m) => `<option value="${m.id}" ${m.id === hl ? 'selected' : ''}>${m.label}</option>`).join('')}
     </select></label>`;
   return `<section class="charts">
-    <div class="chips scroll" role="tablist" aria-label="Grafico">${tabs}</div>
+    <div class="chips scroll" role="tablist" aria-label="Grafico" data-keep-scroll="chart-tabs">${tabs}</div>
     <div class="chart-bar">${pick}<span class="chart-legend"><span class="lg-med${hl ? ' lg-hl' : ''}"></span>${
       hl ? esc(MODELS.find((m) => m.id === hl).label) : 'mediana'
     } · <span class="lg-model"></span> singoli modelli</span></div>
@@ -694,7 +693,28 @@ function route() {
   return { tab: parts[0] || 'panoramica', id: parts[1], params };
 }
 
+// Le file che scorrono in orizzontale (categorie dei grafici, grafici) restano dove sono
+// quando la pagina viene ridisegnata, invece di tornare all'inizio.
+function keepScroll() {
+  const saved = [...app.querySelectorAll('[data-keep-scroll]')].map((el) => [el.dataset.keepScroll, el.scrollLeft]);
+  return () => {
+    for (const [k, x] of saved) {
+      const el = app.querySelector(`[data-keep-scroll="${k}"]`);
+      if (el) el.scrollLeft = x;
+    }
+  };
+}
+
+let lastHash = null;
 function render() {
+  // Su un'altra pagina si riparte dall'inizio; sulla stessa si resta fermi.
+  const restore = location.hash === lastHash ? keepScroll() : () => {};
+  lastHash = location.hash;
+  renderRoute();
+  restore();
+}
+
+function renderRoute() {
   const r = route();
   document.querySelectorAll('.tabbar a').forEach((a) => {
     const active = a.dataset.tab === (r.tab === 'posto' || r.tab === 'aggiungi' ? 'panoramica' : r.tab);
