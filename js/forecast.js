@@ -1,12 +1,15 @@
 // Scarica le previsioni Open-Meteo per tutti i posti e tutte le quote
 // con UNA sola chiamata (Open-Meteo accetta liste di coordinate).
-import { MODELS, HOURLY_VARS, summarizePoint } from './snow.js';
+import { MODELS, HOURLY_VARS, summarizePoint, totalRange } from './snow.js';
 import { BANDS } from './places.js';
 
 const API = 'https://api.open-meteo.com/v1/forecast';
 const CACHE_KEY = 'mm.forecast.v1';
 const MAX_AGE_MS = 60 * 60 * 1000; // un'ora
 export const FORECAST_DAYS = 7;
+// Giorni passati scaricati insieme alla previsione: servono alle regole della finestra buona
+// (neve e vento degli ultimi 3 giorni).
+export const PAST_DAYS = 3;
 
 function buildPoints(places) {
   const points = [];
@@ -26,9 +29,18 @@ export function buildUrl(points) {
     hourly: HOURLY_VARS.join(','),
     models: MODELS.map((m) => m.id).join(','),
     forecast_days: String(FORECAST_DAYS),
+    past_days: String(PAST_DAYS),
     timezone: 'Europe/Rome',
   });
   return `${API}?${q}`;
+}
+
+// Separa i giorni passati da quelli di previsione: la panoramica mostra solo da oggi.
+function splitPast(summary) {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(new Date());
+  const past = summary.days.filter((d) => d.date < today);
+  const days = summary.days.filter((d) => d.date >= today).slice(0, FORECAST_DAYS);
+  return { past, days, total: totalRange(days) };
 }
 
 function readCache(key) {
@@ -82,7 +94,7 @@ export async function loadForecast(places, { force = false } = {}) {
   const byPlace = {};
   points.forEach((p, i) => {
     byPlace[p.placeId] ??= {};
-    byPlace[p.placeId][p.band] = list[i] ? summarizePoint(list[i], p.elev) : null;
+    byPlace[p.placeId][p.band] = list[i] ? splitPast(summarizePoint(list[i], p.elev)) : null;
   });
   return { fetchedAt, stale, byPlace };
 }

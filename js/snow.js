@@ -19,6 +19,9 @@ export const HOURLY_VARS = [
   'cloud_cover',
 ];
 
+// Vento in quota da cui la neve soffice inizia a essere spostata (valore indicativo, km/h).
+export const TRANSPORT_WIND_KMH = 25;
+
 // Un modello "copre" un giorno se ha almeno 20 ore valide di precipitazione.
 const MIN_HOURS_PER_DAY = 20;
 
@@ -96,17 +99,43 @@ export function summarizePoint(point, elev, models = MODELS) {
       let flMax = null;
       let windMax = null;
       let windDir = null;
+      let rain = 0;
+      let tx = 0;
+      let ty = 0;
+      let transportHours = 0;
+      let tNightMin = null;
+      let snowTemp = 0;
+      let snowW = 0;
       const clouds = [];
+      const nightClouds = [];
       for (const i of valid) {
+        const hour = Number(times[i].slice(11, 13));
         precip += pr[i];
-        snow += hourlySnowCm(elev, pr[i], t[i], fl[i]);
+        const hs = hourlySnowCm(elev, pr[i], t[i], fl[i]);
+        snow += hs;
+        if (hs > 0 && t[i] != null) {
+          snowTemp += hs * t[i];
+          snowW += hs;
+        }
+        if (pr[i] > 0) rain += pr[i] * (1 - snowFraction(elev, t[i], fl[i]));
+        // Direzione del vento che sposta la neve: media vettoriale pesata sulle ore con vento ≥ soglia.
+        if (ws[i] != null && wd[i] != null && ws[i] >= TRANSPORT_WIND_KMH) {
+          const rad = (wd[i] * Math.PI) / 180;
+          tx += ws[i] * Math.sin(rad);
+          ty += ws[i] * Math.cos(rad);
+          transportHours++;
+        }
+        // Notte (0-6): rigelo della neve.
+        if (hour <= 6) {
+          if (t[i] != null) tNightMin = tNightMin == null ? t[i] : Math.min(tNightMin, t[i]);
+          if (cc[i] != null) nightClouds.push(cc[i]);
+        }
         if (fl[i] != null) flMax = flMax == null ? fl[i] : Math.max(flMax, fl[i]);
         if (ws[i] != null && (windMax == null || ws[i] > windMax)) {
           windMax = ws[i];
           windDir = wd[i] ?? null;
         }
         // Nuvolosità solo nelle ore diurne (8-17).
-        const hour = Number(times[i].slice(11, 13));
         if (cc[i] != null && hour >= 8 && hour <= 17) clouds.push(cc[i]);
       }
       const tvals = valid.map((i) => t[i]).filter((x) => x != null);
@@ -119,6 +148,12 @@ export function summarizePoint(point, elev, models = MODELS) {
         cloud: clouds.length ? clouds.reduce((a, b) => a + b, 0) / clouds.length : null,
         tMin: tvals.length ? Math.min(...tvals) : null,
         tMax: tvals.length ? Math.max(...tvals) : null,
+        rain,
+        transportHours,
+        transportDir: transportHours ? (((Math.atan2(tx, ty) * 180) / Math.PI) + 360) % 360 : null,
+        tNightMin,
+        tSnow: snowW ? snowTemp / snowW : null, // temperatura media mentre nevica
+        nightCloud: nightClouds.length ? nightClouds.reduce((a, b) => a + b, 0) / nightClouds.length : null,
       };
     }
     const vals = Object.values(perModel);

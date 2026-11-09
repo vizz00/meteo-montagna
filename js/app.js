@@ -2,10 +2,12 @@ import { PLACES, BANDS, REGIONS, externalLinks } from './places.js';
 import { MODELS, rangeText, roundCm, compass, nextSnowfall } from './snow.js';
 import { loadForecast } from './forecast.js';
 import { loadPrefs, savePrefs } from './storage.js';
+import { mountRadar, unmountRadar } from './radar.js';
 import { renderAddPage } from './addplace.js';
 import { keepPlace } from './myplaces.js';
 import { loadAvalanche, romeDate } from './avalanche.js';
 import { avalBadge, avalPlaceBlock, avalPage } from './avalanche-view.js';
+import { evaluateWindows, STATUS_LABEL, SECTORS, RULES } from './window.js';
 import { renderSeason } from './season-view.js';
 
 const app = document.getElementById('app');
@@ -86,6 +88,109 @@ function skyIcon(day) {
   return `<svg class="sky" viewBox="0 0 24 24" role="img" aria-label="${kind}"><title>${kind}</title>${icons[kind]}</svg>`;
 }
 
+// Icone delle righe (al posto delle etichette di testo).
+const ICON = {
+  snow: '<path d="M12 2v20M3.5 7l17 10M20.5 7l-17 10M9 3.5l3 2.5 3-2.5M9 20.5l3-2.5 3 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  freezing: '<path d="M10 4a2 2 0 0 1 4 0v9.5a4 4 0 1 1-4 0z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="17" r="1.8" fill="currentColor"/><path d="M16.5 6h3M16.5 9.5h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  wind: '<path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  window: '<circle cx="7" cy="12" r="3.2" fill="var(--win-closed)"/><circle cx="12" cy="12" r="3.2" fill="var(--win-warn)"/><circle cx="17" cy="12" r="3.2" fill="var(--win-open)"/>',
+};
+const icon = (name, label) =>
+  `<svg class="ico" viewBox="0 0 24 24" role="img" aria-label="${label}"><title>${label}</title>${ICON[name]}</svg>`;
+
+// ---------- finestra buona ----------
+
+const placeAspects = (id) => state.prefs.aspects?.[id] || [];
+
+function bulletinFor(placeId) {
+  const a = state.aval;
+  const entry = a?.byPlace?.[placeId];
+  return (date) => (!entry ? null : date === a.today ? entry.today : date === a.tomorrow ? entry.tomorrow : null);
+}
+
+function windowsFor(place, band) {
+  const s = state.forecast?.byPlace[place.id]?.[band];
+  if (!s) return null;
+  return evaluateWindows(s, place.elevations[band], { aspects: placeAspects(place.id), bulletinFor: bulletinFor(place.id) });
+}
+
+function windowTitle(w) {
+  const lines = [STATUS_LABEL[w.status]];
+  for (const s of w.signals) if (s.level !== 'info') lines.push(`${s.certainty === 'possibile' ? 'possibile: ' : ''}${s.text}`);
+  if (w.status === 'meteo') lines.push(w.conditions.filter((c) => !c.bonus && !c.ok).map((c) => `no ${c.label} (${c.text})`).join(', '));
+  return lines.join('\n');
+}
+
+// Pallino colorato: verde aperta, giallo con avvisi, rosso chiusa, grigio meteo non buono.
+function windowMark(w) {
+  if (!w) return '<span class="win"></span>';
+  const t = esc(windowTitle(w));
+  return `<span class="win win-${w.status}" role="img" aria-label="${t}" title="${t}"></span>`;
+}
+
+// Rosa a 8 settori: i versanti caricati dal vento in arancione, quelli scelti dall'utente bordati.
+function aspectRose(loaded, mine = [], size = 64) {
+  const r = size / 2;
+  const paths = SECTORS.map((name, i) => {
+    const a0 = ((i * 45 - 22.5 - 90) * Math.PI) / 180;
+    const a1 = ((i * 45 + 22.5 - 90) * Math.PI) / 180;
+    const R = r - 2;
+    const p = `M${r},${r} L${r + R * Math.cos(a0)},${r + R * Math.sin(a0)} A${R},${R} 0 0 1 ${r + R * Math.cos(a1)},${r + R * Math.sin(a1)} Z`;
+    const cls = `${loaded.includes(name) ? 'loaded' : ''} ${mine.includes(name) ? 'mine' : ''}`;
+    return `<path class="${cls}" d="${p}"><title>${name}</title></path>`;
+  }).join('');
+  return `<svg class="rose" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="Versanti caricati: ${
+    loaded.length ? loaded.join(', ') : 'nessuno'
+  }">${paths}<text x="${r}" y="9" text-anchor="middle">N</text></svg>`;
+}
+
+function windowSection(place, band) {
+  const s = state.forecast?.byPlace[place.id]?.[band];
+  if (!s) return '';
+  const ws = windowsFor(place, band);
+  const mine = placeAspects(place.id);
+  const items = s.days
+    .map((d, i) => {
+      const w = ws[i];
+      const conds = w.conditions
+        .map((c) => `<li class="${c.ok ? 'ok' : 'ko'}${c.bonus ? ' bonus' : ''}">${c.ok ? '✓' : c.bonus ? '·' : '✗'} ${esc(c.label)} <span class="muted">${esc(c.text)}</span></li>`)
+        .join('');
+      const sigs = w.signals
+        .map(
+          (x) =>
+            `<li class="sig sig-${x.level}">${x.level === 'chiusa' ? '⛔' : x.level === 'info' ? 'ℹ' : '⚠'} ${
+              x.certainty === 'possibile' ? '<b>possibile</b>: ' : ''
+            }${esc(x.text)} <span class="muted">(${esc(x.source)})</span></li>`,
+        )
+        .join('');
+      const rose = w.loaded.length
+        ? `<div class="win-rose">${aspectRose(w.loaded, mine)}<span class="muted">${
+            w.slabSource === 'bollettino' ? 'dal bollettino' : 'stima dal vento in quota'
+          }</span></div>`
+        : '';
+      return `<li class="win-day">
+        <div class="win-head"><span class="cap">${longDay(d.date)}</span><span class="win-pill win-${w.status}">${STATUS_LABEL[w.status]}</span></div>
+        <div class="win-body"><div><ul class="win-conds">${conds}</ul>${sigs ? `<ul class="win-sigs">${sigs}</ul>` : ''}</div>${rose}</div>
+      </li>`;
+    })
+    .join('');
+  const picker = SECTORS.map(
+    (a) => `<button type="button" class="aspect" data-aspect="${a}" data-place-aspect="${place.id}" aria-pressed="${mine.includes(a)}">${a}</button>`,
+  ).join('');
+  return `<section class="windows">
+    <h2>Finestra buona a ${place.elevations[band]} m</h2>
+    <p class="muted small">Regole SLF ed EAWS. Il bollettino ha l'ultima parola.</p>
+    <div class="aspect-pick"><span>I tuoi versanti</span><div class="aspects">${picker}</div></div>
+    <ol class="win-list">${items}</ol>
+  </section>`;
+}
+
+function toggleAspect(placeId, aspect) {
+  const cur = placeAspects(placeId);
+  const next = cur.includes(aspect) ? cur.filter((a) => a !== aspect) : [...cur, aspect];
+  setPrefs({ aspects: { ...(state.prefs.aspects || {}), [placeId]: SECTORS.filter((a) => next.includes(a)) } });
+}
+
 // ---------- caricamento dati ----------
 
 async function refreshAvalanche(force = false) {
@@ -164,7 +269,7 @@ function summaryCard(visible) {
   </section>`;
 }
 
-function dayCell(place, day) {
+function dayCell(place, day, win) {
   const med = day.snow ? roundCm(day.snow.median) : null;
   const max = day.snow ? day.snow.max : 0;
   const scale = 40; // cm a cui la barra è piena
@@ -185,6 +290,7 @@ function dayCell(place, day) {
     <span class="snow ${med ? 'has-snow' : ''}">${day.snow ? rangeText(day.snow) : 'n.d.'}</span>
     <span class="fl" title="Zero termico massimo">${fl}</span>
     <span class="wind" title="Vento massimo in quota (700 hPa, circa 3000 m), km/h">${wind}</span>
+    ${windowMark(win)}
   </a>`;
 }
 
@@ -195,6 +301,7 @@ function placeCard(place) {
   const elev = place.elevations[band];
   const fav = isFav(place.id);
   const total = s?.total;
+  const wins = windowsFor(place, band);
   return `<article class="place" data-place="${place.id}">
     <header class="place-head">
       <button type="button" class="star" data-fav="${place.id}" aria-pressed="${fav}" aria-label="${fav ? 'Togli dai preferiti' : 'Aggiungi ai preferiti'}">${fav ? '★' : '☆'}</button>
@@ -210,9 +317,9 @@ function placeCard(place) {
     <div class="days" role="list">
       <div class="row-labels" aria-hidden="true">
         <span class="day-name">&nbsp;</span><span class="sky-sp"></span><span class="bar-sp"></span>
-        <span class="snow">cm</span><span class="fl">0°C</span><span class="wind">vento</span>
+        <span class="snow">${icon('snow', 'Neve (cm)')}</span><span class="fl">${icon('freezing', 'Zero termico (m)')}</span><span class="wind">${icon('wind', 'Vento in quota (km/h)')}</span><span class="win-l">${icon('window', 'Finestra buona')}</span>
       </div>
-      ${s ? s.days.map((d) => dayCell(place, d)).join('') : '<p class="muted">Dati non disponibili</p>'}
+      ${s ? s.days.map((d, i) => dayCell(place, d, wins?.[i])).join('') : '<p class="muted">Dati non disponibili</p>'}
     </div>
     <footer class="place-foot">
       ${avalBadge(place, state.aval)}
@@ -254,14 +361,12 @@ function renderOverview() {
     ${status}
     ${state.error && state.forecast ? `<div class="notice">${esc(state.error)}</div>` : ''}
     ${body}
-    <section class="explain">
-      <h3>Come leggere i numeri</h3>
-      <p><b>Neve (cm)</b>: stimata alla quota scelta da precipitazione, temperatura e zero termico di ogni modello
-      (limite neve circa 300 m sotto lo zero termico; rapporto neve/acqua da 10:1 vicino a 0 °C fino a 15:1 sotto −8 °C).
-      Il numero è l'<b>intervallo tra i modelli</b> (${MODELS.map((m) => m.label).join(', ')}); la barra chiara arriva al modello più nevoso, quella piena alla mediana.</p>
-      <p><b>0°C</b>: zero termico massimo del giorno in metri (ECMWF e Météo-France non lo forniscono). <b>Vento</b>: massimo del giorno in quota (700 hPa, circa 3000 m), in km/h, con la direzione di provenienza.</p>
-      <p>I modelli ad alta risoluzione coprono solo i primi giorni (MeteoSwiss CH2 circa 5, ICON-2I circa 3): il totale a 7 giorni usa solo i modelli che coprono tutta la settimana.</p>
-    </section>`;
+    <details class="explain">
+      <summary>Come leggere</summary>
+      <p>${icon('snow', 'Neve')} neve stimata in cm, intervallo tra i modelli (${MODELS.map((m) => m.label).join(', ')}). Barra piena = mediana, chiara = modello più nevoso.</p>
+      <p>${icon('freezing', 'Zero termico')} zero termico massimo in metri. ${icon('wind', 'Vento')} vento massimo in quota (circa 3000 m), km/h e provenienza.</p>
+      <p>${icon('window', 'Finestra buona')} finestra buona: <span class="win win-aperta legend"></span> sì · <span class="win win-avvisi legend"></span> con avvisi · <span class="win win-chiusa legend"></span> chiusa · <span class="win win-meteo legend"></span> meteo non buono. Tocca un giorno per il perché.</p>
+    </details>`;
 }
 
 function favButton(place) {
@@ -327,6 +432,7 @@ function renderDetail(id, params) {
     }${place.custom ? ` · <a href="#/aggiungi?modifica=${place.id}">Modifica</a>` : ''}</p>
     ${place.single ? '' : `<div class="toolbar">${bandSwitch()}</div>`}
     ${table}
+    ${windowSection(place, band)}
     <div class="notice placeholder">
       <p><b>In arrivo</b>: grafico orario per modello con zero termico, vento e raffiche, nuvolosità; le tre quote affiancate; neve misurata e al suolo.</p>
     </div>
@@ -402,6 +508,10 @@ function render() {
     else a.removeAttribute('aria-current');
   });
 
+  // Il radar occupa tutto lo schermo; quando si cambia scheda la mappa viene chiusa.
+  document.body.classList.toggle('radar-mode', r.tab === 'radar');
+  if (r.tab !== 'radar') unmountRadar();
+
   switch (r.tab) {
     case 'panoramica':
       return renderOverview();
@@ -410,10 +520,7 @@ function render() {
     case 'aggiungi':
       return renderAddPage(app, r.params, { onSaved: placeSaved, onDeleted: placeDeleted });
     case 'radar':
-      return renderPlaceholder('Radar', 'In arrivo: radar animato RainViewer con i posti preferiti sulla mappa e barra del tempo.', [
-        { label: 'Radar MeteoSwiss', url: 'https://www.meteosvizzera.admin.ch/' },
-        { label: 'RainViewer', url: 'https://www.rainviewer.com/map.html' },
-      ]);
+      return mountRadar(app, { places: PLACES, favorites: state.prefs.favorites });
     case 'valanghe':
       return renderAvalanche(r.params);
     case 'stagione':
@@ -429,6 +536,8 @@ app.addEventListener('click', (e) => {
   if (bandBtn) return setPrefs({ band: bandBtn.dataset.band });
   const fav = e.target.closest('[data-fav]');
   if (fav) return toggleFav(fav.dataset.fav);
+  const asp = e.target.closest('[data-aspect]');
+  if (asp) return toggleAspect(asp.dataset.placeAspect, asp.dataset.aspect);
   if (e.target.closest('[data-retry]')) return refresh(true);
 });
 app.addEventListener('submit', (e) => {
