@@ -84,6 +84,16 @@ function skyIcon(day) {
   return `<svg class="sky" viewBox="0 0 24 24" role="img" aria-label="${kind}"><title>${kind}</title>${icons[kind]}</svg>`;
 }
 
+// Icone delle righe (al posto delle etichette di testo).
+const ICON = {
+  snow: '<path d="M12 2v20M3.5 7l17 10M20.5 7l-17 10M9 3.5l3 2.5 3-2.5M9 20.5l3-2.5 3 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  freezing: '<path d="M10 4a2 2 0 0 1 4 0v9.5a4 4 0 1 1-4 0z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="17" r="1.8" fill="currentColor"/><path d="M16.5 6h3M16.5 9.5h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  wind: '<path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  window: '<circle cx="7" cy="12" r="3.2" fill="var(--win-closed)"/><circle cx="12" cy="12" r="3.2" fill="var(--win-warn)"/><circle cx="17" cy="12" r="3.2" fill="var(--win-open)"/>',
+};
+const icon = (name, label) =>
+  `<svg class="ico" viewBox="0 0 24 24" role="img" aria-label="${label}"><title>${label}</title>${ICON[name]}</svg>`;
+
 // ---------- finestra buona ----------
 
 const placeAspects = (id) => state.prefs.aspects?.[id] || [];
@@ -107,11 +117,11 @@ function windowTitle(w) {
   return lines.join('\n');
 }
 
-const WIN_SHORT = { aperta: 'sì', avvisi: 'sì!', chiusa: 'no', meteo: '–', nd: '' };
-
+// Pallino colorato: verde aperta, giallo con avvisi, rosso chiusa, grigio meteo non buono.
 function windowMark(w) {
   if (!w) return '<span class="win"></span>';
-  return `<span class="win win-${w.status}" title="${esc(windowTitle(w))}">${WIN_SHORT[w.status]}</span>`;
+  const t = esc(windowTitle(w));
+  return `<span class="win win-${w.status}" role="img" aria-label="${t}" title="${t}"></span>`;
 }
 
 // Rosa a 8 settori: i versanti caricati dal vento in arancione, quelli scelti dall'utente bordati.
@@ -165,8 +175,8 @@ function windowSection(place, band) {
   ).join('');
   return `<section class="windows">
     <h2>Finestra buona a ${place.elevations[band]} m</h2>
-    <p class="muted small">Sole, vento debole e zero termico sotto la quota, senza segnali d'allarme di nivologia. Nessun voto: i segnali vengono da regole note (SLF, EAWS) e dal bollettino, che ha sempre l'ultima parola.</p>
-    <div class="aspect-pick"><span>I tuoi versanti qui${mine.length ? '' : ' <span class="muted">(nessuno: la finestra vale per versante)</span>'}</span><div class="aspects">${picker}</div></div>
+    <p class="muted small">Regole SLF ed EAWS. Il bollettino ha l'ultima parola.</p>
+    <div class="aspect-pick"><span>I tuoi versanti</span><div class="aspects">${picker}</div></div>
     <ol class="win-list">${items}</ol>
   </section>`;
 }
@@ -303,7 +313,7 @@ function placeCard(place) {
     <div class="days" role="list">
       <div class="row-labels" aria-hidden="true">
         <span class="day-name">&nbsp;</span><span class="sky-sp"></span><span class="bar-sp"></span>
-        <span class="snow">cm</span><span class="fl">0°C</span><span class="wind">vento</span><span class="win-l" title="Finestra buona">fin.</span>
+        <span class="snow">${icon('snow', 'Neve (cm)')}</span><span class="fl">${icon('freezing', 'Zero termico (m)')}</span><span class="wind">${icon('wind', 'Vento in quota (km/h)')}</span><span class="win-l">${icon('window', 'Finestra buona')}</span>
       </div>
       ${s ? s.days.map((d, i) => dayCell(place, d, wins?.[i])).join('') : '<p class="muted">Dati non disponibili</p>'}
     </div>
@@ -346,15 +356,12 @@ function renderOverview() {
     ${status}
     ${state.error && state.forecast ? `<div class="notice">${esc(state.error)}</div>` : ''}
     ${body}
-    <section class="explain">
-      <h3>Come leggere i numeri</h3>
-      <p><b>Neve (cm)</b>: stimata alla quota scelta da precipitazione, temperatura e zero termico di ogni modello
-      (limite neve circa 300 m sotto lo zero termico; rapporto neve/acqua da 10:1 vicino a 0 °C fino a 15:1 sotto −8 °C).
-      Il numero è l'<b>intervallo tra i modelli</b> (${MODELS.map((m) => m.label).join(', ')}); la barra chiara arriva al modello più nevoso, quella piena alla mediana.</p>
-      <p><b>0°C</b>: zero termico massimo del giorno in metri (ECMWF e Météo-France non lo forniscono). <b>Vento</b>: massimo del giorno in quota (700 hPa, circa 3000 m), in km/h, con la direzione di provenienza.</p>
-      <p><b>Fin.</b> (finestra buona): <b>sì</b> = sole, vento in quota sotto ${RULES.okWind} km/h, zero termico sotto la quota e nessun segnale d'allarme; <b>sì!</b> = buona ma con avvisi (per esempio accumuli da vento su alcuni versanti); <b>no</b> = chiusa da un segnale (neve fresca critica, pioggia, niente rigelo, pericolo 4 del bollettino); <b>–</b> = meteo non buono. Il dettaglio di ogni giorno è nella pagina del posto.</p>
-      <p>I modelli ad alta risoluzione coprono solo i primi giorni (MeteoSwiss CH2 circa 5, ICON-2I circa 3): il totale a 7 giorni usa solo i modelli che coprono tutta la settimana.</p>
-    </section>`;
+    <details class="explain">
+      <summary>Come leggere</summary>
+      <p>${icon('snow', 'Neve')} neve stimata in cm, intervallo tra i modelli (${MODELS.map((m) => m.label).join(', ')}). Barra piena = mediana, chiara = modello più nevoso.</p>
+      <p>${icon('freezing', 'Zero termico')} zero termico massimo in metri. ${icon('wind', 'Vento')} vento massimo in quota (circa 3000 m), km/h e provenienza.</p>
+      <p>${icon('window', 'Finestra buona')} finestra buona: <span class="win win-aperta legend"></span> sì · <span class="win win-avvisi legend"></span> con avvisi · <span class="win win-chiusa legend"></span> chiusa · <span class="win win-meteo legend"></span> meteo non buono. Tocca un giorno per il perché.</p>
+    </details>`;
 }
 
 function renderDetail(id, params) {

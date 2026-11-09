@@ -152,11 +152,14 @@ main { max-width: 980px; margin: 0 auto; padding: 14px 16px 24px; outline: none;
 .fl, .wind { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .wind small { font-size: 10px; }
 
-.win { font-size: 11px; font-weight: 700; min-width: 26px; height: 18px; line-height: 18px; border-radius: 9px; text-align: center; padding: 0 4px; }
-.win-aperta { background: var(--win-open); color: #06210f; }
-.win-avvisi { background: transparent; color: var(--win-open); box-shadow: inset 0 0 0 1.5px var(--win-open); }
-.win-chiusa { background: transparent; color: var(--win-closed); box-shadow: inset 0 0 0 1.5px var(--win-closed); }
-.win-meteo, .win-nd { color: var(--muted); }
+.win { width: 14px; height: 14px; border-radius: 50%; }
+.win.legend { display: inline-block; width: 10px; height: 10px; vertical-align: -1px; }
+.win-aperta { background: var(--win-open); }
+.win-avvisi { background: var(--win-warn); }
+.win-chiusa { background: var(--win-closed); }
+.win-meteo, .win-nd { background: transparent; box-shadow: inset 0 0 0 1.5px var(--muted); }
+.win-pill.win-aperta, .win-pill.win-avvisi, .win-pill.win-chiusa { color: #0b1220; width: auto; height: auto; border-radius: 999px; }
+.win-pill.win-meteo, .win-pill.win-nd { color: var(--muted); }
 
 .windows { margin: 18px 0; }
 .windows h2 { font-size: 18px; margin: 0 0 4px; }
@@ -202,6 +205,10 @@ main { max-width: 980px; margin: 0 auto; padding: 14px 16px 24px; outline: none;
 .links a { color: var(--muted); }
 
 .explain { color: var(--muted); font-size: 13px; margin-top: 18px; }
+.explain summary { color: var(--text); font-weight: 600; cursor: pointer; padding: 6px 0; }
+.explain .ico { width: 15px; height: 15px; vertical-align: -3px; }
+.ico { width: 16px; height: 16px; display: block; }
+.explain .ico, .explain .win.legend { display: inline-block; }
 .explain h3 { color: var(--text); font-size: 14px; margin: 0 0 6px; }
 .explain p { margin: 0 0 8px; }
 
