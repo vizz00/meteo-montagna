@@ -1,0 +1,43 @@
+{
+  "_nota": "Estratto reale di static.avalanche.report/eaws_bulletins/eaws_bulletins/2026-02-15/2026-02-15-IT-21.it.json (EAWS/AINEVA, CC BY 4.0). Tolti i testi lunghi dei previsori.",
+  "bulletins": [
+    {
+      "avalancheProblems": [
+        { "problemType": "wind_slab", "aspects": ["SW", "NW", "W", "E", "SE", "N", "S", "NE"], "avalancheSize": 3, "frequency": "some", "snowpackStability": "very_poor", "validTimePeriod": "all_day" }
+      ],
+      "bulletinID": "81c1cf9f-9328-435a-bbce-e67ee85b2e41",
+      "customData": { "ALBINA": { "mainDate": "2026-02-15" } },
+      "dangerRatings": [{ "mainValue": "considerable", "validTimePeriod": "all_day" }],
+      "lang": "it",
+      "publicationTime": "2026-02-14T16:00:00+00:00",
+      "regions": [
+        { "regionID": "IT-21-VB-01", "name": "Alpi Pennine di confine" },
+        { "regionID": "IT-21-VB-02", "name": "Alpi Lepontine Nord" }
+      ],
+      "source": { "provider": { "name": "AINEVA Piemonte", "website": "https://bollettini.aineva.it" } },
+      "unscheduled": false,
+      "validTime": { "startTime": "2026-02-14T23:00:00+00:00", "endTime": "2026-02-15T23:00:00+00:00" }
+    },
+    {
+      "avalancheProblems": [
+        { "problemType": "wind_slab", "aspects": ["SW", "NW", "W", "E", "SE", "N", "S", "NE"], "avalancheSize": 3, "elevation": { "lowerBound": "treeline" }, "validTimePeriod": "all_day" },
+        { "problemType": "persistent_weak_layers", "aspects": ["NW", "E", "N", "NE"], "avalancheSize": 2, "validTimePeriod": "all_day" }
+      ],
+      "bulletinID": "e519a8ef-0d0b-459e-8fa7-ed3a479f4d08",
+      "customData": { "ALBINA": { "mainDate": "2026-02-15" } },
+      "dangerRatings": [
+        { "mainValue": "moderate", "elevation": { "upperBound": "treeline" }, "validTimePeriod": "all_day" },
+        { "mainValue": "considerable", "elevation": { "lowerBound": "treeline" }, "validTimePeriod": "all_day" }
+      ],
+      "lang": "it",
+      "publicationTime": "2026-02-14T16:00:00+00:00",
+      "regions": [
+        { "regionID": "IT-21-TO-05", "name": "IT-21-TO-05" },
+        { "regionID": "IT-21-TO-03", "name": "Alpi Graie" }
+      ],
+      "source": { "provider": { "name": "AINEVA Piemonte", "website": "https://bollettini.aineva.it" } },
+      "unscheduled": false,
+      "validTime": { "startTime": "2026-02-14T23:00:00+00:00", "endTime": "2026-02-15T23:00:00+00:00" }
+    }
+  ]
+}

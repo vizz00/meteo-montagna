@@ -18,6 +18,7 @@ App: https://vizz00.github.io/meteo-montagna/
 
 [Open-Meteo](https://open-meteo.com/) (gratuito, senza chiave), una sola chiamata per tutti i posti e le quote, modelli ECMWF, ICON, GFS, Météo-France, MeteoSwiss ICON-CH2, ICON-2I.
 Radar: [RainViewer](https://www.rainviewer.com/api.html) (gratuito, senza chiave; zoom del radar fino al livello 7). Mappe di base: CARTO e OpenTopoMap (dati OpenStreetMap), libreria [Leaflet](https://leafletjs.com/) caricata da unpkg solo quando si apre il radar.
+**Valanghe**: bollettini ufficiali dall'archivio aperto [EAWS](https://www.avalanches.org/) (AINEVA per Valle d'Aosta, Piemonte e Lombardia, SLF per la Svizzera, licenza CC BY 4.0), letti nel browser da `static.avalanche.report`. Per ogni posto si mostra il grado della sua micro-zona, sopra e sotto la quota limite, mattino/pomeriggio se il bollettino li distingue, e i problemi valanghivi. Nessuna interpretazione: per il resto si apre il bollettino.
 
 La neve alla quota è stimata da precipitazione, temperatura e zero termico (limite neve circa 300 m sotto lo zero termico, rapporto neve/acqua da 10:1 a 15:1). Il calcolo è in `js/snow.js`.
 
@@ -32,7 +33,8 @@ La neve alla quota è stimata da precipitazione, temperatura e zero termico (lim
 | `js/leaflet-loader.js` | carica la mappa Leaflet solo quando serve |
 | `js/forecast.js` | scarica e salva le previsioni |
 | `js/snow.js` | calcoli della neve (provati con i test) |
-| `js/radar.js`, `js/leaflet-loader.js` | schermata radar e caricamento della mappa |
+| `js/radar.js` | schermata radar |
+| `js/avalanche.js`, `js/avalanche-view.js` | grado valanghe ufficiale per micro-zona (EAWS) e come si mostra |
 | `sw.js`, `manifest.webmanifest`, `icons/` | app installabile e offline |
 
 Nessuna dipendenza e nessuna compilazione: sono file statici.

@@ -178,6 +178,41 @@ table.models .sel { background: #1b2a52; }
 table.models tr.sep th, table.models tr.sep td { border-top: 2px solid var(--line); }
 .links-row { display: flex; flex-wrap: wrap; gap: 8px; }
 
+/* Valanghe: colori ufficiali della scala europea EAWS (usati solo per il grado) */
+.dl {
+  display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 4px;
+  border-radius: 5px; font-weight: 800; font-size: 13px; color: #111; font-variant-numeric: tabular-nums;
+}
+.dl.big { min-width: 40px; height: 40px; font-size: 20px; border-radius: 8px; flex: none; }
+.dl-0 { background: #e8eefc; }
+.dl-1 { background: #ccff66; }
+.dl-2 { background: #ffff00; }
+.dl-3 { background: #ff9900; }
+.dl-4 { background: #ff0000; }
+.dl-5 { background: repeating-linear-gradient(45deg, #ff0000 0 6px, #000 6px 12px); color: #fff; text-shadow: 0 0 2px #000; }
+.dl-na { background: var(--line); color: var(--muted); }
+.badge-aval { gap: 6px; flex-wrap: wrap; padding: 4px 10px; }
+.badge-aval small { color: var(--muted); font-size: 11px; margin-right: 2px; }
+.aval-k { color: var(--muted); font-size: 12px; font-weight: 600; }
+.aval-sep { margin-left: 4px; padding-left: 8px; border-left: 1px solid var(--line); }
+
+.aval-archive { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 14px; color: var(--muted); font-size: 14px; }
+.aval-archive input { font: inherit; min-height: 44px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); margin-left: 6px; }
+.aval-place { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin: 0 0 14px; scroll-margin-top: 80px; }
+.aval-head h2 { margin: 0; font-size: 19px; }
+.aval-day { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
+.aval-title { margin: 0 0 8px; font-weight: 700; }
+.aval-title::first-letter { text-transform: uppercase; }
+.aval-period { margin: 8px 0 4px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.aval-rows, .aval-problems { list-style: none; margin: 0; padding: 0; }
+.aval-rows li { display: flex; align-items: center; gap: 12px; margin: 0 0 8px; line-height: 1.25; }
+.aval-sub { margin: 10px 0 4px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+.aval-problems li { margin: 0 0 4px; font-size: 14px; }
+.aval-meta { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+.aval-legend { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--text); }
+.aval-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.aval-place .links-row { margin: 10px 0 0; }
+
 /* Barra in basso */
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
