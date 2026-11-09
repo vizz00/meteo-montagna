@@ -3,6 +3,7 @@ import { MODELS, rangeText, roundCm, compass, nextSnowfall } from './snow.js';
 import { loadForecast } from './forecast.js';
 import { loadPrefs, savePrefs } from './storage.js';
 import { renderAddPage } from './addplace.js';
+import { keepPlace } from './myplaces.js';
 import { loadAvalanche, romeDate } from './avalanche.js';
 import { avalBadge, avalPlaceBlock, avalPage } from './avalanche-view.js';
 
@@ -49,6 +50,7 @@ function setPrefs(patch) {
 }
 
 function toggleFav(id) {
+  if (!isFav(id)) keepPlace(id);
   const favs = isFav(id) ? state.prefs.favorites.filter((f) => f !== id) : [...state.prefs.favorites, id];
   setPrefs({ favorites: favs });
 }
@@ -197,7 +199,7 @@ function placeCard(place) {
       <button type="button" class="star" data-fav="${place.id}" aria-pressed="${fav}" aria-label="${fav ? 'Togli dai preferiti' : 'Aggiungi ai preferiti'}">${fav ? '★' : '☆'}</button>
       <div class="place-title">
         <h2><a href="#/posto/${place.id}">${esc(place.name)}</a></h2>
-        <p class="place-sub">${BANDS.find((b) => b.id === band).label} ${elev} m · ${esc(region.name)}</p>
+        <p class="place-sub">${place.single ? 'Quota' : BANDS.find((b) => b.id === band).label} ${elev} m · ${esc(region.name)}</p>
       </div>
       <div class="place-total" title="Totale 7 giorni: intervallo tra i modelli che coprono tutta la settimana">
         <span class="total-num">${total ? rangeText(total) : 'n.d.'}</span><span class="total-unit">cm</span>
@@ -222,7 +224,8 @@ function placeCard(place) {
 
 function renderOverview() {
   const favs = PLACES.filter((p) => isFav(p.id));
-  const others = PLACES.filter((p) => !isFav(p.id));
+  // I posti solo "visti" (provvisori) non entrano nella panoramica finché non sono preferiti.
+  const others = PLACES.filter((p) => !isFav(p.id) && !p.temp);
   const showAll = state.prefs.showAll || favs.length === 0;
   const visible = showAll ? [...favs, ...others] : favs;
 
@@ -258,6 +261,13 @@ function renderOverview() {
       <p><b>0°C</b>: zero termico massimo del giorno in metri (ECMWF e Météo-France non lo forniscono). <b>Vento</b>: massimo del giorno in quota (700 hPa, circa 3000 m), in km/h, con la direzione di provenienza.</p>
       <p>I modelli ad alta risoluzione coprono solo i primi giorni (MeteoSwiss CH2 circa 5, ICON-2I circa 3): il totale a 7 giorni usa solo i modelli che coprono tutta la settimana.</p>
     </section>`;
+}
+
+function favButton(place) {
+  const fav = isFav(place.id);
+  return `<button type="button" class="btn ${fav ? 'ghost' : ''} fav-btn" data-fav="${place.id}" aria-pressed="${fav}">${
+    fav ? '★ Nei preferiti' : '☆ Aggiungi ai preferiti'
+  }</button>`;
 }
 
 function renderDetail(id, params) {
@@ -303,11 +313,18 @@ function renderDetail(id, params) {
 
   app.innerHTML = `
     <p class="back"><a href="#/">← Panoramica</a></p>
-    <h1 class="page-title">${esc(place.name)}</h1>
-    <p class="place-sub">Valle ${place.elevations.valle} m · Metà ${place.elevations.meta} m · Cima ${place.elevations.cima} m${
-      place.cimaLabel ? ` (${esc(place.cimaLabel)})` : ''
+    <div class="detail-head">
+      <h1 class="page-title">${esc(place.name)}</h1>
+      ${favButton(place)}
+    </div>
+    <p class="place-sub">${
+      place.single
+        ? `Quota ${place.elevations.valle} m`
+        : `Valle ${place.elevations.valle} m · Metà ${place.elevations.meta} m · Cima ${place.elevations.cima} m${
+            place.cimaLabel ? ` (${esc(place.cimaLabel)})` : ''
+          }`
     }${place.custom ? ` · <a href="#/aggiungi?modifica=${place.id}">Modifica</a>` : ''}</p>
-    <div class="toolbar">${bandSwitch()}</div>
+    ${place.single ? '' : `<div class="toolbar">${bandSwitch()}</div>`}
     ${table}
     <div class="notice placeholder">
       <p><b>In arrivo</b>: grafico orario per modello con zero termico, vento e raffiche, nuvolosità; le tre quote affiancate; neve misurata e al suolo.</p>
@@ -349,8 +366,8 @@ function renderNotFound() {
 }
 
 // Posti aggiunti dall'utente (js/myplaces.js li inserisce in PLACES).
-function placeSaved(place) {
-  if (!isFav(place.id)) {
+function placeSaved(place, { fav = false } = {}) {
+  if (fav && !isFav(place.id)) {
     state.prefs = { ...state.prefs, favorites: [...state.prefs.favorites, place.id] };
     savePrefs(state.prefs);
   }
