@@ -6,6 +6,7 @@ import { renderAddPage } from './addplace.js';
 import { keepPlace } from './myplaces.js';
 import { loadAvalanche, romeDate } from './avalanche.js';
 import { avalBadge, avalPlaceBlock, avalPage } from './avalanche-view.js';
+import { renderSeason } from './season-view.js';
 
 const app = document.getElementById('app');
 const refreshBtn = document.getElementById('refresh');
@@ -416,10 +417,7 @@ function render() {
     case 'valanghe':
       return renderAvalanche(r.params);
     case 'stagione':
-      return renderPlaceholder(
-        'Stagione',
-        'In arrivo: storico della stagione per posto, da novembre a oggi: neve fresca e al suolo, zero termico, periodi caldi o secchi, problemi valanghivi ufficiali giorno per giorno. Solo fatti.',
-      );
+      return renderSeason(app, r.params, { places: PLACES, prefs: state.prefs, isFav, rerender: render });
     default:
       return renderNotFound();
   }

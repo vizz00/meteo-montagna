@@ -11,7 +11,8 @@ App: https://vizz00.github.io/meteo-montagna/
 - **Preferiti** salvati nel browser (nessun account).
 - **Aggiungi posto**: cerca una località per nome o tocca la mappa; le quote valle / metà / cima vengono proposte dal modello del terreno e si possono correggere. I posti aggiunti restano nel browser e si possono modificare o eliminare.
 - Installabile su telefono e computer, si apre anche senza rete con l'ultima previsione scaricata.
-- Radar, Valanghe e Stagione sono ancora segnaposto con i link ai siti ufficiali.
+- **Stagione**: per ogni posto, dal 1° novembre a oggi (o una stagione passata), alla quota scelta: neve fresca e al suolo, zero termico, periodi secchi e caldi, pioggia, grado e problemi valanghivi ufficiali giorno per giorno, con quando compaiono e quanto restano gli strati deboli persistenti. Solo fatti, con le soglie scritte nella pagina.
+- Il radar è ancora un segnaposto con i link ai siti ufficiali.
 
 ## Dati
 
@@ -32,6 +33,7 @@ La neve alla quota è stimata da precipitazione, temperatura e zero termico (lim
 | `js/forecast.js` | scarica e salva le previsioni |
 | `js/snow.js` | calcoli della neve (provati con i test) |
 | `js/avalanche.js`, `js/avalanche-view.js` | grado valanghe ufficiale per micro-zona (EAWS) e come si mostra |
+| `js/season.js`, `js/season-view.js`, `css/season.css` | schermata Stagione: archivio Open-Meteo (historical-forecast-api) e archivio EAWS giornaliero (`ratings.json`, `problems.json`) |
 | `sw.js`, `manifest.webmanifest`, `icons/` | app installabile e offline |
 
 Nessuna dipendenza e nessuna compilazione: sono file statici.
