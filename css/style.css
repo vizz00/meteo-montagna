@@ -212,6 +212,20 @@ table.models tr.sep th, table.models tr.sep td { border-top: 2px solid var(--lin
 .aval-legend { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--text); }
 .aval-legend li { display: inline-flex; align-items: center; gap: 6px; }
 .aval-place .links-row { margin: 10px 0 0; }
+.aval-day-body { display: grid; gap: 10px; }
+@media (min-width: 640px) { .aval-day-body { grid-template-columns: 1fr minmax(180px, 280px); align-items: start; } }
+.aval-bmap, .aval-map { margin: 0; }
+.aval-bmap { max-width: 280px; }
+.aval-bmap img, .aval-map img { display: block; width: 100%; height: auto; border-radius: 10px; background: #fff; border: 1px solid var(--line); }
+.aval-bmap figcaption, .aval-map figcaption { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.aval-maps { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin: 0 0 14px; }
+.aval-maps h2 { margin: 0 0 4px; font-size: 19px; }
+.aval-map-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.aval-tomorrow { margin-top: 12px; }
+.aval-tomorrow summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--accent); font-weight: 600; }
+.aval-nomap { display: none; margin: 0; font-size: 14px; }
+.aval-map.missing a { display: none; }
+.aval-map.missing .aval-nomap { display: block; }
 
 /* Barra in basso */
 .tabbar {
