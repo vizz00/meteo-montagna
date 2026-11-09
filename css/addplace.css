@@ -1,0 +1,50 @@
+/* Pagina "Aggiungi un posto" (ricerca e mappa) */
+.add-place { min-height: 40px; font-size: 14px; }
+
+.field { display: flex; flex-direction: column; gap: 4px; margin: 0 0 10px; font-size: 14px; color: var(--muted); font-weight: 600; }
+.add-search input,
+.add-form input,
+.add-form select {
+  width: 100%; min-height: 44px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--bg-2); color: var(--text); font: inherit; font-size: 16px;
+}
+.add-search input:focus, .add-form input:focus, .add-form select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.add-search { margin: 12px 0 6px; }
+
+.results { list-style: none; margin: 6px 0 0; padding: 0; }
+.results li { margin: 0 0 4px; }
+.results li.muted { padding: 8px 4px; font-size: 14px; }
+.result {
+  width: 100%; min-height: 48px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+  gap: 1px; padding: 6px 12px; text-align: left;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--text); font: inherit; cursor: pointer;
+}
+.result:hover, .result:focus-visible { border-color: var(--accent); }
+.result .muted { font-size: 13px; }
+
+.section-title { font-size: 15px; margin: 16px 0 8px; color: var(--muted); }
+
+.pick-map {
+  height: 340px; border-radius: var(--radius); border: 1px solid var(--line);
+  background: var(--bg-2); overflow: hidden; margin-top: 8px;
+}
+.small { font-size: 13px; }
+#map-note:empty { display: none; }
+
+.add-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin: 14px 0; }
+.coords { margin: -4px 0 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.elevs { border: 0; padding: 0; margin: 4px 0 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.elevs legend { padding: 0; margin-bottom: 4px; font-size: 14px; color: var(--muted); font-weight: 600; }
+.elev-field { position: relative; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.elev-field input { padding-right: 26px; font-variant-numeric: tabular-nums; }
+.elev-field small { position: absolute; right: 10px; bottom: 13px; }
+.hint { color: var(--muted); font-size: 13px; margin: 10px 0; }
+.form-error { color: var(--warn); font-size: 14px; margin: 0 0 10px; }
+.form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn[disabled] { opacity: .5; cursor: default; }
+.btn.danger { color: var(--warn); }
+
+/* Leaflet sul tema scuro */
+.pick-map .leaflet-container { background: var(--bg-2); }
+.leaflet-control-attribution { font-size: 10px; }
