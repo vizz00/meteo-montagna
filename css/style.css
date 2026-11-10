@@ -17,6 +17,12 @@
   --snow-3: #6f8dff;
   --snow-4: #8f6bff;
   --snow-5: #b26bff;
+  /* Stessa scala per i numeri: contrasto almeno 4.5:1 sulle schede (WCAG AA) */
+  --snow-t1: #718ad1;
+  --snow-t2: #5984ff;
+  --snow-t3: #6f8dff;
+  --snow-t4: #9775ff;
+  --snow-t5: #b26bff;
   --radius: 14px;
   --tabbar-h: 64px;
   color-scheme: dark;

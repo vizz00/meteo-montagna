@@ -62,6 +62,8 @@ function toggleFav(id) {
 }
 
 // Scala colori neve: dal blu al viola con l'intensità (colori fissi solo per la neve).
+// I numeri usano la versione "testo" della scala: abbastanza chiara da leggersi sullo sfondo scuro.
+const snowTextColor = (cm) => snowColor(cm).replace('--snow-', '--snow-t');
 function snowColor(cm) {
   if (cm >= 30) return 'var(--snow-5)';
   if (cm >= 20) return 'var(--snow-4)';
@@ -443,7 +445,7 @@ const windArrow = (deg) =>
 function snowDay(d) {
   const cm = roundCm(d.snow?.median ?? 0);
   return cm
-    ? `<span class="fc-cm" style="color:${snowColor(cm)}" title="${d.snow ? `${rangeText(d.snow)} cm tra i modelli` : ''}">${cm}<small>cm</small></span>`
+    ? `<span class="fc-cm" style="color:${snowTextColor(cm)}" title="${d.snow ? `${rangeText(d.snow)} cm tra i modelli` : ''}">${cm}<small>cm</small></span>`
     : '<span class="fc-cm none" aria-hidden="true">·</span>';
 }
 
