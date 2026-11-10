@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { evaluateDay, evaluateWindows, leeSectors, meanDirection, problemAtElevation } from '../js/window.js';
+import { evaluateDay, evaluateWindows, leeSectors, meanDirection, problemAtElevation, statusLabel } from '../js/window.js';
 import { summarizePoint } from '../js/snow.js';
 
 // Giorno sintetico con gli stessi valori per 3 modelli.
@@ -120,4 +120,23 @@ test('risposta reale Open-Meteo: una finestra per ogni giorno, senza errori', ()
   const ws = evaluateWindows({ past: [], days: s.days }, 2050);
   assert.equal(ws.length, s.days.length);
   for (const w of ws) assert.ok(['aperta', 'avvisi', 'chiusa', 'meteo', 'nd'].includes(w.status));
+});
+
+test('un segnale "possibile" conta più del meteo: nuvoloso con pioggia possibile dà avvisi', () => {
+  const days = [day('d1'), day('d2'), day('d3', { cloud: 90 })];
+  days[2].models.a.rain = 5;
+  const w = evaluateDay(days, 2, ELEV);
+  assert.equal(w.status, 'avvisi');
+  assert.equal(w.weatherOk, false);
+  assert.equal(statusLabel(w), 'Avvisi, meteo non buono');
+});
+
+test('senza bollettino la finestra buona lo dice', () => {
+  const days = [day('d1'), day('d2'), day('d3')];
+  const w = evaluateDay(days, 2, ELEV);
+  assert.equal(w.noBulletin, true);
+  assert.equal(statusLabel(w), 'Buona per meteo e neve, senza bollettino');
+  const withB = evaluateDay(days, 2, ELEV, { bulletin: { max: 1, problems: [] } });
+  assert.equal(withB.noBulletin, false);
+  assert.equal(statusLabel(withB), 'Finestra buona');
 });

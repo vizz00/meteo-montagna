@@ -142,6 +142,7 @@ const cm = (x) => (x < 10 ? Math.round(x) : round5(x));
  *  - bulletin: riassunto del bollettino di quel giorno (summarizeBulletin) o null
  * Restituisce { status, conditions, signals, loaded, closedOn, snow3 }.
  * status: 'aperta' | 'avvisi' | 'chiusa' | 'meteo' (meteo non buono) | 'nd'
+ * weatherOk: il meteo è buono; noBulletin: manca il bollettino di quel giorno
  */
 export function evaluateDay(days, index, elev, { aspects = [], bulletin = null } = {}) {
   const ids = Object.keys(days[index]?.models || {});
@@ -223,13 +224,16 @@ export function evaluateDay(days, index, elev, { aspects = [], bulletin = null }
   }
 
   const weatherOk = conditions.filter((c) => !c.bonus).every((c) => c.ok);
+  // Un segnale di nivologia, anche solo "possibile", conta più del meteo:
+  // un giorno nuvoloso con un allarme non deve sembrare soltanto "nuvoloso".
   let status;
   if (signals.some((s) => s.level === 'chiusa' && s.certainty === 'sì')) status = 'chiusa';
-  else if (!weatherOk) status = 'meteo';
   else if (signals.some((s) => s.level === 'chiusa' || s.level === 'avviso')) status = 'avvisi';
+  else if (!weatherOk) status = 'meteo';
   else status = 'aperta';
 
-  return { status, conditions, signals, loaded, slabSource, closedOn, snow3 };
+  // Senza bollettino (giorni oltre domani, fuori stagione) il giudizio viene solo da meteo e neve.
+  return { status, weatherOk, noBulletin: !bulletin, conditions, signals, loaded, slabSource, closedOn, snow3 };
 }
 
 export const STATUS_LABEL = {
@@ -239,6 +243,14 @@ export const STATUS_LABEL = {
   meteo: 'Meteo non buono',
   nd: 'n.d.',
 };
+
+/** Etichetta parlante di una finestra: tiene conto del meteo e del bollettino mancante. */
+export function statusLabel(w) {
+  if (!w) return STATUS_LABEL.nd;
+  if (w.status === 'avvisi' && w.weatherOk === false) return 'Avvisi, meteo non buono';
+  if (w.status === 'aperta' && w.noBulletin) return 'Buona per meteo e neve, senza bollettino';
+  return STATUS_LABEL[w.status];
+}
 
 /** Finestre per tutti i giorni di previsione di un riassunto { past, days }. */
 export function evaluateWindows(summary, elev, { aspects = [], bulletinFor = () => null } = {}) {

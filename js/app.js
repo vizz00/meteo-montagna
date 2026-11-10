@@ -9,7 +9,7 @@ import { renderAddPage } from './addplace.js';
 import { keepPlace } from './myplaces.js';
 import { loadAvalanche, romeDate } from './avalanche.js';
 import { avalPlaceBlock, avalPage } from './avalanche-view.js';
-import { evaluateWindows, STATUS_LABEL, SECTORS, RULES } from './window.js';
+import { evaluateWindows, statusLabel, SECTORS, RULES } from './window.js';
 import { renderSeason } from './season-view.js';
 
 const app = document.getElementById('app');
@@ -99,18 +99,20 @@ function windowsFor(place, band) {
 }
 
 function windowTitle(w) {
-  const lines = [STATUS_LABEL[w.status]];
+  const lines = [statusLabel(w)];
   for (const s of w.signals) if (s.level !== 'info') lines.push(`${s.certainty === 'possibile' ? 'possibile: ' : ''}${s.text}`);
-  if (w.status === 'meteo') lines.push(w.conditions.filter((c) => !c.bonus && !c.ok).map((c) => `no ${c.label} (${c.text})`).join(', '));
+  if (w.weatherOk === false) lines.push(w.conditions.filter((c) => !c.bonus && !c.ok).map((c) => `no ${c.label} (${c.text})`).join(', '));
   return lines.join('\n');
 }
 
-// Segno colorato: ● verde aperta, ▲ giallo con avvisi, ✕ rosso chiusa, ○ meteo non buono.
+// Segno colorato: ● verde aperta, ◐ verde a metà se manca il bollettino, ▲ giallo con avvisi,
+// ✕ rosso chiusa, ○ meteo non buono.
 // Forme diverse oltre ai colori: si distinguono anche da chi confonde rosso e verde.
+const winClass = (w) => `win win-${w.status}${w.status === 'aperta' && w.noBulletin ? ' win-nobul' : ''}`;
 function windowMark(w) {
   if (!w) return '<span class="win"></span>';
   const t = esc(windowTitle(w));
-  return `<span class="win win-${w.status}" role="img" aria-label="${t}" title="${t}"></span>`;
+  return `<span class="${winClass(w)}" role="img" aria-label="${t}" title="${t}"></span>`;
 }
 
 // Rosa a 8 settori: i versanti caricati dal vento in arancione, quelli scelti dall'utente bordati.
@@ -179,11 +181,15 @@ function windowSection(place, band, selDay = null) {
       const main = w.signals.find((x) => x.level === 'chiusa') || w.signals.find((x) => x.level === 'avviso' || x.level === 'versanti');
       const why = w.status === 'meteo'
         ? w.conditions.filter((c) => !c.bonus && !c.ok).map((c) => ({ sun: 'nuvoloso', calm: 'ventoso', freezing: 'zero termico alto' })[c.id] || c.label).join(', ')
-        : main ? main.text.split(':')[0] : '';
+        : main ? `${main.certainty === 'possibile' ? 'possibile ' : ''}${main.source === 'bollettino' ? main.text.replace(/^bollettino: /, '') : main.text.split(':')[0]}`
+        : w.status === 'aperta' && w.noBulletin ? 'senza bollettino' : '';
+      const noBul = w.noBulletin && w.status !== 'nd'
+        ? '<li class="sig sig-info">ℹ nessun bollettino valanghe per questo giorno: qui contano solo meteo e neve</li>'
+        : '';
       const open = openDays.has(`${place.id}|${d.date}`);
       return `<li class="win-day" id="win-${d.date}"><details data-open-key="${place.id}|${d.date}" ${open ? 'open' : ''}>
-        <summary><span class="win win-${w.status}" role="img" aria-label="${esc(STATUS_LABEL[w.status])}"></span><span class="cap">${weekday(d.date)} ${dayNum(d.date)}</span><span class="win-why">${esc(why)}</span></summary>
-        <div class="win-body"><div><ul class="win-conds">${conds}</ul>${sigs ? `<ul class="win-sigs">${sigs}</ul>` : ''}</div>${rose}</div>
+        <summary><span class="${winClass(w)}" role="img" aria-label="${esc(statusLabel(w))}"></span><span class="cap">${weekday(d.date)} ${dayNum(d.date)}</span><span class="win-why">${esc(why)}</span></summary>
+        <div class="win-body"><div><ul class="win-conds">${conds}</ul>${sigs || noBul ? `<ul class="win-sigs">${sigs}${noBul}</ul>` : ''}</div>${rose}</div>
       </details></li>`;
     })
     .join('');
@@ -559,7 +565,7 @@ function renderOverview() {
       <summary>Come leggere</summary>
       <p>Riga neve: ultime 24 ore e totali dei prossimi 1-5 e 6-10 giorni; sotto ogni giorno i cm previsti. Con le frecce in alto riordini i preferiti, oppure ordini per neve prevista.</p>
       <p>Neve stimata: mediana tra i modelli (${MODELS.map((m) => m.label).join(', ')}). Tieni il dito su un numero per l'intervallo tra i modelli. Dal 6° giorno restano solo ECMWF e GFS.</p>
-      <p>Finestra buona: <span class="win win-aperta legend"></span> sì · <span class="win win-avvisi legend"></span> con avvisi · <span class="win win-chiusa legend"></span> chiusa · <span class="win win-meteo legend"></span> meteo non buono.</p>
+      <p>Finestra buona: <span class="win win-aperta legend"></span> sì · <span class="win win-aperta win-nobul legend"></span> sì, ma senza bollettino · <span class="win win-avvisi legend"></span> avvisi · <span class="win win-chiusa legend"></span> chiusa · <span class="win win-meteo legend"></span> meteo non buono. Un avviso conta più del meteo.</p>
       <p>Quota di metà per tutti i posti; nella pagina del posto si sceglie valle, metà o cima. Vento: in quota (circa 3000 m), km/h e provenienza. Raffiche: vicino al suolo.</p>
     </details>`;
 }
@@ -745,13 +751,14 @@ function renderDetail(id, params) {
     ${place.single ? '' : `<div class="toolbar">${bandSwitch(place)}</div>`}
     <div class="detail-card">${card.replace(/<header[\s\S]*?<\/header>/, '').replace(/<footer[\s\S]*<\/footer>/, '')}</div>
     ${chartBlock(place, band)}
+    ${avalPlaceBlock(place, state.aval, { heading: 'Bollettino valanghe' })}
     ${windowSection(place, band, params.get('giorno'))}
-    ${avalPlaceBlock(place, state.aval)}
     <p class="links-row">${externalLinks(place)
       .map((l) => `<a class="btn ghost" href="${l.url}" target="_blank" rel="noopener">${l.label} ↗</a>`)
       .join('')}</p>`;
   const sel = params.get('giorno');
-  if (sel && state.scrolledDay !== location.hash) {
+  // Si scorre al giorno solo quando la sua riga esiste (al primo caricamento la previsione arriva dopo).
+  if (sel && state.scrolledDay !== location.hash && document.getElementById(`win-${sel}`)) {
     state.scrolledDay = location.hash;
     requestAnimationFrame(() => document.getElementById(`win-${sel}`)?.scrollIntoView({ block: 'center' }));
   }
