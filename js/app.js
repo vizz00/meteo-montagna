@@ -126,6 +126,19 @@ function aspectRose(loaded, mine = [], size = 64) {
   }">${paths}<text x="${r}" y="9" text-anchor="middle">N</text></svg>`;
 }
 
+// Giorni della finestra buona aperti dall'utente: restano aperti quando la pagina si ridisegna.
+const openDays = new Set();
+document.addEventListener(
+  'toggle',
+  (e) => {
+    const k = e.target.dataset?.openKey;
+    if (!k) return;
+    if (e.target.open) openDays.add(k);
+    else openDays.delete(k);
+  },
+  true,
+);
+
 function windowSection(place, band, selDay = null) {
   const s = state.forecast?.byPlace[place.id]?.[band];
   if (!s) return '';
@@ -155,7 +168,8 @@ function windowSection(place, band, selDay = null) {
       const why = w.status === 'meteo'
         ? w.conditions.filter((c) => !c.bonus && !c.ok).map((c) => ({ sun: 'nuvoloso', calm: 'ventoso', freezing: 'zero termico alto' })[c.id] || c.label).join(', ')
         : main ? main.text.split(':')[0] : '';
-      return `<li class="win-day" id="win-${d.date}"><details ${d.date === selDay ? 'open' : ''}>
+      const open = openDays.has(`${place.id}|${d.date}`);
+      return `<li class="win-day" id="win-${d.date}"><details data-open-key="${place.id}|${d.date}" ${open ? 'open' : ''}>
         <summary><span class="win win-${w.status}"></span><span class="cap">${weekday(d.date)} ${dayNum(d.date)}</span><span class="win-why">${esc(why)}</span></summary>
         <div class="win-body"><div><ul class="win-conds">${conds}</ul>${sigs ? `<ul class="win-sigs">${sigs}</ul>` : ''}</div>${rose}</div>
       </details></li>`;
@@ -202,6 +216,11 @@ async function loadAvalancheArchive(day) {
 
 async function refresh(force = false) {
   refreshAvalanche(force);
+  const r = route();
+  if (force && r.tab === 'posto') {
+    const p = placeById(r.id);
+    if (p) ensureDetail(p, p.single ? 'valle' : state.prefs.band, true);
+  }
   state.loading = true;
   state.error = null;
   ptr.classList.add('spinning');
@@ -414,6 +433,12 @@ function dayIcon(day) {
   }</span>`;
 }
 
+// Freccia del vento: punta dove va il vento (come nei grafici), così il numero resta da solo.
+const windArrow = (deg) =>
+  deg == null
+    ? ''
+    : `<svg class="w-arrow" viewBox="-6 -6 12 12" aria-hidden="true"><path transform="rotate(${Math.round(deg + 180)})" d="M0,-5 L3.2,3 L0,1.2 L-3.2,3 Z" fill="currentColor"/></svg>`;
+
 // Neve del giorno sotto l'icona: cm (mediana) solo se c'è, in colore neve.
 function snowDay(d) {
   const cm = roundCm(d.snow?.median ?? 0);
@@ -461,7 +486,7 @@ function forecastCard(place) {
         <span class="fc-min">${d.tMin != null ? Math.round(d.tMin) : '–'}°</span>
         ${dayIcon(d)}
         ${snowDay(d)}
-        <span class="fc-w" title="Vento massimo in quota">${d.wind ? `${Math.round(d.wind.speed)}<small>${compass(d.wind.dir)}</small>` : '–'}</span>
+        <span class="fc-w" title="${d.wind ? `Vento massimo in quota: ${Math.round(d.wind.speed)} km/h da ${compass(d.wind.dir)}` : ''}">${d.wind ? `${windArrow(d.wind.dir)}${Math.round(d.wind.speed)}` : '–'}</span>
         ${windowMark(wins[i])}
       </a>`,
     )
@@ -546,12 +571,14 @@ const WIND_BANDS = [
   { from: 60, to: 999, label: 'molto forte', cls: 'b-vstrong' },
 ];
 
-async function ensureDetail(place, band) {
+async function ensureDetail(place, band, force = false) {
   const key = `${place.id}|${band}|${place.elevations[band]}`;
-  if (state.detail?.key === key && (state.detail.data || state.detail.loading)) return;
-  state.detail = { key, loading: true, data: null, error: null };
+  if (!force && state.detail?.key === key && (state.detail.data || state.detail.loading)) return;
+  // Aggiornando si tengono i grafici vecchi a schermo finché arrivano i nuovi.
+  const old = state.detail?.key === key ? state.detail.data : null;
+  state.detail = { key, loading: !old, data: old, error: null };
   try {
-    const data = await loadDetail(place, band);
+    const data = await loadDetail(place, band, { force });
     if (state.detail.key === key) state.detail = { key, loading: false, data, error: null };
   } catch (err) {
     console.error(err);
@@ -608,12 +635,15 @@ function renderDetail(id, params) {
   const place = placeById(id);
   if (!place) return renderNotFound();
   const band = place.single ? 'valle' : state.prefs.band;
+  // Il giorno toccato nei preferiti si apre una volta; poi lo chiude o apre l'utente.
+  const sel0 = params.get('giorno');
+  if (sel0 && state.scrolledDay !== location.hash) openDays.add(`${place.id}|${sel0}`);
   ensureDetail(place, band);
   const s = state.forecast?.byPlace[place.id]?.[band];
   const card = s ? snowCard(place, { detail: true }) : '';
 
   app.innerHTML = `
-    <p class="back"><a href="#/">← Preferiti</a></p>
+    <p class="back"><a href="${esc(state.backHref || '#/')}" data-back>← ${esc(state.backLabel || 'Preferiti')}</a></p>
     <div class="detail-head">
       <h1 class="page-title">${esc(place.name)}</h1>
       ${favButton(place)}
@@ -685,8 +715,8 @@ function placeDeleted(id) {
 
 // ---------- router ----------
 
-function route() {
-  const hash = location.hash.replace(/^#/, '') || '/';
+function route(h = location.hash) {
+  const hash = (h || '').replace(/^#/, '') || '/';
   const [path, query = ''] = hash.split('?');
   const params = new URLSearchParams(query);
   const parts = path.split('/').filter(Boolean);
@@ -780,7 +810,19 @@ app.addEventListener('change', (e) => {
   if (e.target.matches('[data-chart-model]')) setPrefs({ chartModel: e.target.value });
 });
 
+// Da quale scheda si è arrivati al posto, per il link "indietro".
+const BACK_LABEL = { panoramica: 'Preferiti', valanghe: 'Valanghe', radar: 'Radar', stagione: 'Stagione' };
+let prevHash = location.hash;
 window.addEventListener('hashchange', () => {
+  const from = route(prevHash);
+  if (route().tab === 'posto' && from.tab !== 'posto' && BACK_LABEL[from.tab]) {
+    state.backHref = prevHash || '#/';
+    state.backLabel = BACK_LABEL[from.tab];
+  } else if (route().tab !== 'posto') {
+    state.backHref = null;
+    state.backLabel = null;
+  }
+  prevHash = location.hash;
   render();
   window.scrollTo(0, 0);
 });

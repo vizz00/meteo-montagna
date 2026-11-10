@@ -4,7 +4,14 @@ import { MODELS, HOURLY_VARS, summarizePoint, totalRange, pointNow, chartSeries 
 import { BANDS } from './places.js';
 
 const API = 'https://api.open-meteo.com/v1/forecast';
-const CACHE_KEY = 'mm.forecast.v1';
+// Si salva il riassunto per giorno (non la risposta grezza, 3 volte più grande):
+// così ci stanno molti posti nello spazio del browser.
+const CACHE_KEY = 'mm.forecast.v2';
+try {
+  localStorage.removeItem('mm.forecast.v1'); // vecchio formato grezzo
+} catch {
+  /* ignorato */
+}
 const MAX_AGE_MS = 60 * 60 * 1000; // un'ora
 export const FORECAST_DAYS = 10; // panoramica: prossimi 1-5 e 6-10 giorni
 export const DETAIL_DAYS = 16; // dettaglio del posto: grafici a 15 giorni
@@ -37,12 +44,16 @@ export function buildUrl(points, days = FORECAST_DAYS) {
 }
 
 // Separa i giorni passati da quelli di previsione: la panoramica mostra solo da oggi.
-function splitPast(summary, raw, elev) {
+function splitPast(point) {
+  if (!point) return null;
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(new Date());
-  const past = summary.days.filter((d) => d.date < today);
-  const days = summary.days.filter((d) => d.date >= today).slice(0, FORECAST_DAYS);
-  return { past, days, total: totalRange(days), ...(pointNow(raw, elev) || {}) };
+  const past = point.days.filter((d) => d.date < today);
+  const days = point.days.filter((d) => d.date >= today).slice(0, FORECAST_DAYS);
+  return { past, days, total: totalRange(days), ...(point.now || {}) };
 }
+
+// Riassunto di un punto: giorni (passati e futuri) e situazione "adesso".
+const compactPoint = (raw, elev) => (raw ? { days: summarizePoint(raw, elev).days, now: pointNow(raw, elev) } : null);
 
 function readCache(key) {
   try {
@@ -69,33 +80,34 @@ export async function loadForecast(places, { force = false } = {}) {
   const points = buildPoints(places);
   const url = buildUrl(points);
   const cached = readCache(url);
-  let raw = null;
+  let points2 = null;
   let fetchedAt = null;
   let stale = false;
 
   if (!force && cached && Date.now() - cached.fetchedAt < MAX_AGE_MS) {
-    raw = cached.data;
+    points2 = cached.data;
     fetchedAt = cached.fetchedAt;
   } else {
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Open-Meteo ha risposto ${res.status}`);
-      raw = await res.json();
+      const raw = await res.json();
+      const list = Array.isArray(raw) ? raw : [raw];
+      points2 = points.map((p, i) => compactPoint(list[i], p.elev));
       fetchedAt = Date.now();
-      writeCache(url, raw);
+      writeCache(url, points2);
     } catch (err) {
       if (!cached) throw err;
-      raw = cached.data;
+      points2 = cached.data;
       fetchedAt = cached.fetchedAt;
       stale = true;
     }
   }
 
-  const list = Array.isArray(raw) ? raw : [raw];
   const byPlace = {};
   points.forEach((p, i) => {
     byPlace[p.placeId] ??= {};
-    byPlace[p.placeId][p.band] = list[i] ? splitPast(summarizePoint(list[i], p.elev), list[i], p.elev) : null;
+    byPlace[p.placeId][p.band] = splitPast(points2[i]);
   });
   return { fetchedAt, stale, byPlace };
 }
