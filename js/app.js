@@ -572,13 +572,14 @@ function favButton(place) {
 
 // ---------- dettaglio del posto: grafici per modello ----------
 
+// step: distanza tra le righe dell'asse verticale (in base all'escursione); tick: testo con l'unità.
 const CHARTS = [
-  { id: 'snowTotal', label: 'Neve totale', unit: 'cm', min: 0, minSpan: 10 },
-  { id: 'snowLine', label: 'Quota neve', unit: 'm', min: 0, ref: 'elev' },
-  { id: 'temp', label: 'Temperatura', unit: '°C', ref: 0 },
-  { id: 'wind', label: 'Vento in quota', unit: 'km/h', min: 0, minSpan: 40, bands: true, arrows: true },
-  { id: 'gust', label: 'Raffiche', unit: 'km/h', min: 0, minSpan: 40, bands: true },
-  { id: 'cloud', label: 'Nuvole', unit: '%', min: 0, max: 100 },
+  { id: 'snowTotal', label: 'Neve totale', unit: 'cm', min: 0, minSpan: 10, step: (r) => (r <= 40 ? 5 : r <= 80 ? 10 : 20), tick: (v) => `${v}cm` },
+  { id: 'snowLine', label: 'Quota neve', unit: 'm', min: 0, ref: 'elev', step: (r) => (r <= 3000 ? 500 : 1000), tick: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1).replace('.0', '')}k` : `${v}`) },
+  { id: 'temp', label: 'Temperatura', unit: '°C', ref: 0, step: (r) => (r <= 40 ? 5 : 10), tick: (v) => `${v}°` },
+  { id: 'wind', label: 'Vento in quota', unit: 'km/h', min: 0, minSpan: 40, bands: true, arrows: true, step: (r) => (r <= 80 ? 10 : 20) },
+  { id: 'gust', label: 'Raffiche', unit: 'km/h', min: 0, minSpan: 40, bands: true, step: (r) => (r <= 80 ? 10 : 20) },
+  { id: 'cloud', label: 'Nuvole', unit: '%', min: 0, max: 100, step: () => 25, tick: (v) => `${v}%` },
 ];
 const WIND_BANDS = [
   { from: 0, to: 20, label: 'debole', cls: 'b-light' },
@@ -622,7 +623,8 @@ function chartBlock(place, band) {
     bands: cur.bands ? WIND_BANDS : null,
     arrows: cur.arrows ? series.median.windDir : null,
     highlight: hl,
-    fmt: cur.id === 'snowLine' ? (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v)) : null,
+    step: cur.step,
+    fmt: cur.tick || null,
   });
   // Valore "in fondo" della linea mediana (o del modello scelto) per la legenda.
   const src = hl ? series.byModel[hl][cur.id] : series.median[cur.id];
