@@ -537,6 +537,21 @@ body.radar-mode main {
 .win-day details[open] summary { border-bottom: 1px solid var(--line); }
 .win-day .win-body { padding: 8px 14px 10px; }
 .windows h2 .small { font-weight: 400; }
+/* Finestra buona a scomparsa */
+.windows { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 0 12px; }
+.windows > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 52px; cursor: pointer; list-style: none; }
+.windows > summary::-webkit-details-marker { display: none; }
+.windows > summary h2 { margin: 0; }
+.windows .chev { flex: none; width: 22px; height: 22px; color: var(--muted); transition: transform .2s; }
+.windows[open] .chev { transform: rotate(180deg); }
+.windows[open] { padding-bottom: 4px; }
+.windows > summary h2 .small { display: block; font-size: 13px; margin-top: 1px; }
+.windows > summary { padding: 8px 0; }
+.windows .win-day { background: var(--bg-2); }
+.windows .aspect-pick { display: grid; gap: 6px; }
+.windows .aspects { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+.windows .aspect { min-width: 0; min-height: 40px; }
+@media (prefers-reduced-motion: reduce) { .windows .chev { transition: none; } }
 
 /* Preferiti compatti */
 .place.compact { margin-bottom: 10px; }

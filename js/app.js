@@ -134,6 +134,15 @@ const openDays = new Set();
 document.addEventListener(
   'toggle',
   (e) => {
+    // Sezione Finestra buona aperta o chiusa: si ricorda (senza ridisegnare la pagina).
+    if (e.target.matches?.('[data-windows]')) {
+      if (state.prefs.windowsOpen !== e.target.open) {
+        state.prefs = { ...state.prefs, windowsOpen: e.target.open };
+        savePrefs(state.prefs);
+      }
+      if (!e.target.open) openDays.clear(); // chiusa dall'utente: resta chiusa ai ridisegni
+      return;
+    }
     const k = e.target.dataset?.openKey;
     if (!k) return;
     if (e.target.open) openDays.add(k);
@@ -181,11 +190,14 @@ function windowSection(place, band, selDay = null) {
   const picker = SECTORS.map(
     (a) => `<button type="button" class="aspect" data-aspect="${a}" data-place-aspect="${place.id}" aria-pressed="${mine.includes(a)}">${a}</button>`,
   ).join('');
-  return `<section class="windows">
-    <h2>Finestra buona <span class="muted small">a ${place.elevations[band]} m · regole SLF ed EAWS</span></h2>
+  // A scomparsa: chiusa di solito; aperta se l'utente l'ha lasciata aperta o se arriva toccando un giorno.
+  const open = state.prefs.windowsOpen || (selDay && openDays.has(`${place.id}|${selDay}`));
+  return `<details class="windows" data-windows ${open ? 'open' : ''}>
+    <summary><h2>Finestra buona <span class="muted small">a ${place.elevations[band]} m · regole SLF ed EAWS</span></h2>
+      <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
     <ol class="win-list">${items}</ol>
     <div class="aspect-pick"><span class="muted small">I tuoi versanti</span><div class="aspects">${picker}</div></div>
-  </section>`;
+  </details>`;
 }
 
 function toggleAspect(placeId, aspect) {
