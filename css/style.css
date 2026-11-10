@@ -550,7 +550,14 @@ body.radar-mode main {
 .win-day summary { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; list-style: none; }
 .win-day summary::-webkit-details-marker { display: none; }
 .win-day summary .cap { min-width: 56px; }
-.win-why { color: var(--muted); font-size: 13px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.win-why { color: var(--muted); font-size: 13px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+/* iPhone (Safari): senza questi limiti le righe dei giorni prendono la larghezza del testo e la pagina si allarga oltre lo schermo. */
+.win-list { grid-template-columns: minmax(0, 1fr); }
+.windows { min-width: 0; max-width: 100%; overflow-x: clip; }
+.win-day, .win-day > details, .win-day summary { min-width: 0; max-width: 100%; }
+.win-day > details { display: block; }
+.win-body > div:first-child { flex: 1; min-width: 0; }
+.win-conds li, .win-sigs li { min-width: 0; overflow-wrap: anywhere; }
 .win-day details[open] summary { border-bottom: 1px solid var(--line); }
 .win-day .win-body { padding: 8px 14px 10px; }
 .windows h2 .small { font-weight: 400; }
