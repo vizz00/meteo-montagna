@@ -488,11 +488,23 @@ body.radar-mode main {
 .chart { display: block; width: 100%; height: auto; max-width: 640px; margin: 0 auto; }
 /* 6 giorni visibili, gli altri con lo swipe; l'asse dei valori resta fermo a sinistra. */
 .chart-wrap { position: relative; max-width: 640px; margin: 0 auto; }
+.chart-wrap.wide { max-width: none; }
 .chart-scroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; scroll-snap-type: x proximity; }
 .chart-scroll::-webkit-scrollbar { display: none; }
+.chart-inner { position: relative; }
 .chart-inner .chart { max-width: none; margin: 0; }
+/* Valori dell'ora sotto il mouse / toccata */
+.chart-cursor, .chart-tip { position: absolute; display: none; pointer-events: none; }
+.chart-inner.tip-on .chart-cursor, .chart-inner.tip-on .chart-tip { display: block; }
+.chart-cursor { top: 0; bottom: 0; width: 1px; background: color-mix(in srgb, var(--text) 55%, transparent); }
+.chart-tip { top: 6px; z-index: 2; display: none; padding: 6px 9px; border-radius: 8px; background: var(--bg-2); border: 1px solid var(--line); box-shadow: 0 4px 14px rgb(0 0 0 / .35); font-size: 12px; line-height: 1.45; color: var(--muted); white-space: nowrap; }
+.chart-inner.tip-on .chart-tip { display: flex; flex-direction: column; }
+.chart-tip b { color: var(--text); font-size: 15px; }
+.chart-tip .tip-t { color: var(--text); font-weight: 600; }
+.chart-tip .tip-snow { color: var(--snow-t3); }
+.chart-tip .tip-rain { color: #7fd6a4; }
 .chart-inner .chart.strip { margin-top: -4px; }
-.chart-yax-box { position: absolute; left: 0; top: 0; bottom: 0; width: 9.5%; background: var(--card); pointer-events: none; }
+.chart-yax-box { position: absolute; left: 0; top: 0; bottom: 0; background: var(--card); pointer-events: none; }
 .chart-yax-box .chart { max-width: none; }
 .ref-box { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; }
 .ref-tag { position: absolute; right: 2%; transform: translateY(-100%); font: 700 11px system-ui, sans-serif; color: #e8eefc; background: color-mix(in srgb, var(--card) 70%, transparent); padding: 0 3px; border-radius: 4px; }
