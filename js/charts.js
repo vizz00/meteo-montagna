@@ -1,9 +1,23 @@
 // Grafici SVG del dettaglio posto: una linea spessa con la mediana dei modelli
 // e linee sottili per ogni modello. Nessuna libreria esterna.
 
-const W = 400; // larghezza di una "pagina" visibile sul telefono
+// Larghezza di una "pagina" visibile e giorni che ci stanno: sul telefono 400 e 6 giorni
+// (gli altri con lo swipe); su schermi larghi la pagina si allarga e mostra tutti i giorni.
+let W = 400;
+let PAGE_DAYS = 6;
 const PAD = { l: 38, r: 8, t: 10, b: 34 };
-const PAGE_DAYS = 6; // giorni visibili senza scorrere; gli altri si vedono con lo swipe
+
+/** Adatta i grafici alla larghezza disponibile (in pixel). Restituisce true se è cambiato qualcosa. */
+export function setChartWidth(px) {
+  const wide = px >= 700;
+  // Su computer: 1 unità del disegno = 1,3 pixel, così scritte e linee restano di misura giusta.
+  const w = wide ? Math.round(px / 1.3) : 400;
+  const days = wide ? 99 : 6;
+  if (w === W && days === PAGE_DAYS) return false;
+  W = w;
+  PAGE_DAYS = days;
+  return true;
+}
 
 // Larghezza totale del grafico: 6 giorni occupano una pagina, il resto continua a destra.
 function geometry(times) {
@@ -134,9 +148,9 @@ export function lineChart(series, opts) {
 /** Grafico + striscia in un contenitore che scorre in orizzontale: 6 giorni visibili, gli altri con lo swipe. */
 export function scrollCharts(chart, strip) {
   if (typeof chart === 'string') return chart + (strip || '');
-  return `<div class="chart-wrap">
+  return `<div class="chart-wrap${W > 400 ? ' wide' : ''}">
     <div class="chart-scroll" data-keep-scroll="chart"><div class="chart-inner" style="width:${((chart.width / W) * 100).toFixed(2)}%">${chart.plot}${strip || ''}</div></div>
-    <div class="chart-yax-box">${chart.axis}</div>
+    <div class="chart-yax-box" style="width:${((PAD.l / W) * 100).toFixed(2)}%">${chart.axis}</div>
     ${chart.refLabel ? `<div class="ref-box" style="aspect-ratio:${W} ${chart.height}">${chart.refLabel}</div>` : ''}
   </div>`;
 }

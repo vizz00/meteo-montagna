@@ -1,7 +1,7 @@
 import { PLACES, BANDS, REGIONS, externalLinks } from './places.js';
 import { MODELS, rangeText, roundCm, compass, totalRange } from './snow.js';
 import { loadForecast, loadDetail } from './forecast.js';
-import { lineChart, precipStrip, scrollCharts } from './charts.js';
+import { lineChart, precipStrip, scrollCharts, setChartWidth } from './charts.js';
 import { powderDays } from './powder.js';
 import { loadPrefs, savePrefs } from './storage.js';
 import { mountRadar, unmountRadar } from './radar.js';
@@ -604,11 +604,27 @@ async function ensureDetail(place, band, force = false) {
   if (route().tab === 'posto') render();
 }
 
+// Larghezza utile per i grafici: quella della pagina meno margini e bordo della scheda.
+function chartPx() {
+  const cs = getComputedStyle(app);
+  return app.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 22;
+}
+
+// Allargando o stringendo la finestra i grafici si ridisegnano (solo se cambia la misura).
+let resizeT = 0;
+addEventListener('resize', () => {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(() => {
+    if (route().tab === 'posto' && state.detail?.data && setChartWidth(chartPx())) render();
+  }, 150);
+});
+
 function chartBlock(place, band) {
   const d = state.detail;
   if (!d || d.loading) return '<p class="loading">Scarico i grafici a 15 giorni…</p>';
   if (d.error) return `<p class="muted">${esc(d.error)}</p>`;
   const series = d.data.series;
+  setChartWidth(chartPx());
   const cur = CHARTS.find((c) => c.id === state.prefs.chart) || CHARTS[0];
   const hl = state.prefs.chartModel && series.byModel[state.prefs.chartModel] ? state.prefs.chartModel : '';
   const elev = d.data.elev;
