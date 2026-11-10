@@ -72,7 +72,14 @@ export function avalBadge(place, aval) {
   </a>`;
 }
 
-function dayBlock(title, s, place, day) {
+const metaLine = (s) =>
+  `<p class="aval-meta">Pubblicato ${esc(when(s.publicationTime))}${s.provider ? ` da ${esc(s.provider)}` : ''}${
+    s.unscheduled ? ' (aggiornamento straordinario)' : ''
+  } · valido fino a ${esc(when(s.validTo))}</p>`;
+const sameMeta = (a, b) =>
+  a.publicationTime === b.publicationTime && a.validTo === b.validTo && a.provider === b.provider && !!a.unscheduled === !!b.unscheduled;
+
+function dayBlock(title, s, place, day, { meta = true } = {}) {
   const periods = s.periods
     .map(
       (p) => `${s.periods.length > 1 ? `<p class="aval-period">${esc(p.label)}</p>` : ''}
@@ -102,14 +109,12 @@ function dayBlock(title, s, place, day) {
     ${periods}
     ${problems}
     </div>${img}</div>
-    <p class="aval-meta">Pubblicato ${esc(when(s.publicationTime))}${s.provider ? ` da ${esc(s.provider)}` : ''}${
-      s.unscheduled ? ' (aggiornamento straordinario)' : ''
-    } · valido fino a ${esc(when(s.validTo))}</p>
+    ${meta ? metaLine(s) : ''}
   </div>`;
 }
 
 // Blocco completo per un posto (schermata Valanghe e dettaglio posto).
-export function avalPlaceBlock(place, aval, { archive = false } = {}) {
+export function avalPlaceBlock(place, aval, { archive = false, heading = null } = {}) {
   const entry = aval?.byPlace?.[place.id];
   const region = regionInfo(place);
   const official = entry?.today?.providerUrl || entry?.tomorrow?.providerUrl || region.avalancheUrl;
@@ -120,17 +125,21 @@ export function avalPlaceBlock(place, aval, { archive = false } = {}) {
   else if (!entry?.zone) body = '<p class="muted">Non trovo la micro-zona EAWS di questo posto.</p>';
   else {
     const prefix = !archive && aval.today === romeDate() ? 'Oggi, ' : '';
+    // Oggi e domani vengono quasi sempre dallo stesso bollettino: pubblicazione e validità una volta sola.
+    const once = entry.today && entry.tomorrow && sameMeta(entry.today, entry.tomorrow);
     const today = entry.today
-      ? dayBlock(`${prefix}${esc(longDay(aval.today))}`, entry.today, place, aval.today)
+      ? dayBlock(`${prefix}${esc(longDay(aval.today))}`, entry.today, place, aval.today, { meta: !once })
       : `<div class="aval-day"><p class="aval-title">${prefix}${esc(longDay(aval.today))}</p>
          <p class="muted">Nessun bollettino pubblicato per questa zona${archive ? ' in quel giorno' : ' oggi (fuori stagione o non ancora uscito)'}.</p></div>`;
-    const tomorrow = entry.tomorrow ? dayBlock(`Domani, ${esc(longDay(aval.tomorrow))}`, entry.tomorrow, place, aval.tomorrow) : '';
-    body = today + tomorrow;
+    const tomorrow = entry.tomorrow
+      ? dayBlock(`Domani, ${esc(longDay(aval.tomorrow))}`, entry.tomorrow, place, aval.tomorrow, { meta: !once })
+      : '';
+    body = today + tomorrow + (once ? metaLine(entry.today) : '');
   }
   const zone = entry?.zone;
   return `<section class="aval-place" id="valanghe-${esc(place.id)}">
     <header class="aval-head">
-      <h2>${esc(place.name)}</h2>
+      <h2>${esc(heading || place.name)}</h2>
       <p class="place-sub">${zone ? `Micro-zona ${esc(zone.name || zone.id)}${zone.name ? ` (${esc(zone.id)})` : ''} · ` : ''}${esc(region.name)}</p>
     </header>
     ${body}

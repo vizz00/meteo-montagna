@@ -328,7 +328,7 @@ export function renderSeason(app, params, { places, prefs, isFav, rerender }) {
     }</p>
     ${body}
     <section class="explain">
-      <h3>Da dove vengono i dati</h3>
+      <h2>Da dove vengono i dati</h2>
       <p><b>Neve fresca</b>: stimata alla quota dalle previsioni a breve termine archiviate da Open-Meteo (pioggia, temperatura e zero termico ora per ora), con lo stesso calcolo della Panoramica. <b>Neve al suolo</b>: quella del modello meteo, non misurata da una stazione. Sono stime: le stazioni nivometriche possono dare valori diversi.</p>
       <p><b>Periodo secco</b>: almeno ${RULES.dryMinDays} giorni di fila con meno di ${RULES.snowDay} cm di neve fresca. <b>Periodo caldo</b>: almeno ${RULES.warmMinDays} giorni di fila con zero termico massimo sopra la quota scelta. <b>Pioggia</b>: almeno ${RULES.rainMm} mm caduti come pioggia alla quota.</p>
       <p><b>Valanghe</b>: grado e problemi valanghivi ufficiali della micro-zona del posto, dall'archivio <a href="https://www.avalanches.org/" target="_blank" rel="noopener">EAWS</a> (AINEVA, SLF; licenza CC BY 4.0). Il grado mostrato nel grafico è il massimo del giorno; i problemi sono quelli scritti nel bollettino, sopra o sotto la quota limite.</p>
