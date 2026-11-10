@@ -26,6 +26,13 @@ function geometry(times) {
   const plotW = days > PAGE_DAYS ? (pageW * days) / PAGE_DAYS : pageW;
   return { Wd: PAD.l + plotW + PAD.r, plotW, pageW };
 }
+/** Ora più vicina a una posizione nel grafico (frac = 0..1 della larghezza) e sua posizione esatta. */
+export function chartHourAt(times, frac) {
+  const { Wd, plotW } = geometry(times);
+  const n = times.length;
+  const i = Math.max(0, Math.min(n - 1, Math.round(((frac * Wd - PAD.l) / plotW) * (n - 1))));
+  return { i, frac: (PAD.l + (i / Math.max(1, n - 1)) * plotW) / Wd };
+}
 const WEEK = ['D', 'L', 'M', 'M', 'G', 'V', 'S'];
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);

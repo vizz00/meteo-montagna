@@ -1,7 +1,7 @@
 import { PLACES, BANDS, REGIONS, externalLinks } from './places.js';
 import { MODELS, rangeText, roundCm, compass, totalRange } from './snow.js';
 import { loadForecast, loadDetail } from './forecast.js';
-import { lineChart, precipStrip, scrollCharts, setChartWidth } from './charts.js';
+import { lineChart, precipStrip, scrollCharts, setChartWidth, chartHourAt } from './charts.js';
 import { powderDays } from './powder.js';
 import { loadPrefs, savePrefs } from './storage.js';
 import { mountRadar, unmountRadar } from './radar.js';
@@ -619,6 +619,63 @@ addEventListener('resize', () => {
   }, 150);
 });
 
+// Valori dell'ora sotto il mouse (o toccata sul telefono): riga verticale + riquadro.
+const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+function fmtVal(c, v) {
+  if (v == null) return '–';
+  if (c.id === 'snowTotal') return `${roundCm(v)} cm`;
+  if (c.id === 'snowLine') return `${Math.round(v / 50) * 50} m`;
+  return `${Math.round(v)}${c.unit === '°C' ? '°' : ` ${c.unit}`}`;
+}
+function showChartTip(inner, clientX) {
+  const series = state.detail?.data?.series;
+  if (!series) return;
+  const r = inner.getBoundingClientRect();
+  const { i, frac } = chartHourAt(series.times, (clientX - r.left) / r.width);
+  const cur = CHARTS.find((c) => c.id === state.prefs.chart) || CHARTS[0];
+  const hl = state.prefs.chartModel && series.byModel[state.prefs.chartModel] ? state.prefs.chartModel : '';
+  const src = hl ? series.byModel[hl] : series.median;
+  const t = series.times[i];
+  const d = new Date(`${t.slice(0, 10)}T12:00:00`);
+  const vals = Object.values(series.byModel).map((m) => m[cur.id][i]).filter((v) => v != null);
+  const sn = src.snow[i] ?? 0;
+  const rn = src.rain[i] ?? 0;
+  const lines = [
+    `<b>${fmtVal(cur, src[cur.id][i])}</b>`,
+    !hl && vals.length > 1 ? `<span class="tip-range">modelli ${fmtVal(cur, Math.min(...vals)).replace(/\s?[^\d]+$/, '')}–${fmtVal(cur, Math.max(...vals))}</span>` : '',
+    sn > 0.05 ? `<span class="tip-snow">neve ${sn < 1 ? sn.toFixed(1).replace('.', ',') : Math.round(sn)} cm</span>` : '',
+    rn > 0.1 ? `<span class="tip-rain">pioggia ${rn < 1 ? rn.toFixed(1).replace('.', ',') : Math.round(rn)} mm</span>` : '',
+    src.cloud?.[i] != null && cur.id !== 'cloud' ? `<span class="tip-cloud">nuvole ${Math.round(src.cloud[i])}%</span>` : '',
+  ].filter(Boolean);
+  let tip = inner.querySelector('.chart-tip');
+  if (!tip) {
+    inner.insertAdjacentHTML('beforeend', '<div class="chart-cursor"></div><div class="chart-tip" role="status"></div>');
+    tip = inner.querySelector('.chart-tip');
+  }
+  const cursor = inner.querySelector('.chart-cursor');
+  tip.innerHTML = `<span class="tip-t">${DAY_NAMES[d.getDay()]} ${d.getDate()} · ${t.slice(11, 13)}:00</span>${lines.join('')}`;
+  inner.classList.add('tip-on');
+  const x = frac * r.width;
+  cursor.style.left = `${x}px`;
+  // Il riquadro sta a destra della riga, o a sinistra se non c'è spazio nella parte visibile.
+  const scroll = inner.parentElement;
+  const visRight = scroll.scrollLeft + scroll.clientWidth;
+  const right = x + 12 + tip.offsetWidth > visRight;
+  tip.style.left = `${right ? x - 12 - tip.offsetWidth : x + 12}px`;
+}
+app.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse') return;
+  const inner = e.target.closest?.('.chart-inner');
+  if (inner) showChartTip(inner, e.clientX);
+});
+app.addEventListener(
+  'pointerleave',
+  (e) => {
+    if (e.pointerType === 'mouse' && e.target.classList?.contains('chart-inner')) e.target.classList.remove('tip-on');
+  },
+  true,
+);
+
 function chartBlock(place, band) {
   const d = state.detail;
   if (!d || d.loading) return '<p class="loading">Scarico i grafici a 15 giorni…</p>';
@@ -835,6 +892,8 @@ app.addEventListener('keydown', (e) => {
 
 // Eventi delegati (i contenuti vengono ridisegnati a ogni cambio).
 app.addEventListener('click', (e) => {
+  const inner = e.target.closest('.chart-inner');
+  if (inner) return showChartTip(inner, e.clientX);
   if (e.target.closest('[data-reorder]')) {
     state.reorder = true;
     return render();
