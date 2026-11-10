@@ -105,7 +105,8 @@ function windowTitle(w) {
   return lines.join('\n');
 }
 
-// Pallino colorato: verde aperta, giallo con avvisi, rosso chiusa, grigio meteo non buono.
+// Segno colorato: ● verde aperta, ▲ giallo con avvisi, ✕ rosso chiusa, ○ meteo non buono.
+// Forme diverse oltre ai colori: si distinguono anche da chi confonde rosso e verde.
 function windowMark(w) {
   if (!w) return '<span class="win"></span>';
   const t = esc(windowTitle(w));
@@ -172,7 +173,7 @@ function windowSection(place, band, selDay = null) {
         : main ? main.text.split(':')[0] : '';
       const open = openDays.has(`${place.id}|${d.date}`);
       return `<li class="win-day" id="win-${d.date}"><details data-open-key="${place.id}|${d.date}" ${open ? 'open' : ''}>
-        <summary><span class="win win-${w.status}"></span><span class="cap">${weekday(d.date)} ${dayNum(d.date)}</span><span class="win-why">${esc(why)}</span></summary>
+        <summary><span class="win win-${w.status}" role="img" aria-label="${esc(STATUS_LABEL[w.status])}"></span><span class="cap">${weekday(d.date)} ${dayNum(d.date)}</span><span class="win-why">${esc(why)}</span></summary>
         <div class="win-body"><div><ul class="win-conds">${conds}</ul>${sigs ? `<ul class="win-sigs">${sigs}</ul>` : ''}</div>${rose}</div>
       </details></li>`;
     })
@@ -533,6 +534,7 @@ function renderOverview() {
     : '';
 
   app.innerHTML = `
+    <h1 class="sr-only">Preferiti</h1>
     ${state.reorder && favs.length > 1 ? reorderList(favs) : sortSwitch()}
     ${status}
     ${state.error && state.forecast ? `<div class="notice">${esc(state.error)}</div>` : ''}
@@ -776,6 +778,30 @@ function renderRoute() {
       return renderNotFound();
   }
 }
+
+// Tastiera: nei gruppi a scelta singola (quota, ordine, stagione) e nelle schede dei grafici
+// le frecce passano alla voce vicina e la scelgono, come nelle app native.
+app.addEventListener('keydown', (e) => {
+  const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+  const cur = e.target.closest('[role="radio"], [role="tab"]');
+  if (!step || !cur) return;
+  const group = cur.closest('[role="radiogroup"], [role="tablist"]');
+  const items = [...group.querySelectorAll(`[role="${cur.getAttribute('role')}"]`)];
+  const next = items[(items.indexOf(cur) + step + items.length) % items.length];
+  e.preventDefault();
+  // La schermata viene ridisegnata: si ritrova la voce dai suoi attributi data-*.
+  const sel = [...next.attributes].filter((a) => a.name.startsWith('data-')).map((a) => `[${a.name}="${CSS.escape(a.value)}"]`).join('');
+  next.click();
+  // La pagina del posto si ridisegna anche dopo (dati del dettaglio): per circa un secondo
+  // si rimette il fuoco sulla voce scelta se il ridisegno l'ha perso.
+  let tries = 0;
+  const refocus = () => {
+    const el = (sel && app.querySelector(sel)) || next;
+    if (el.isConnected && document.activeElement !== el && (document.activeElement === document.body || !app.contains(document.activeElement))) el.focus();
+    if (++tries < 20) setTimeout(refocus, 50);
+  };
+  setTimeout(refocus, 0);
+});
 
 // Eventi delegati (i contenuti vengono ridisegnati a ogni cambio).
 app.addEventListener('click', (e) => {
