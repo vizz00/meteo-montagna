@@ -71,7 +71,7 @@ export function lineChart(series, opts) {
     hi = Math.max(hi, opts.ref.value);
   }
   if (opts.minSpan && hi - lo < opts.minSpan) hi = lo + opts.minSpan;
-  const st = niceStep(hi - lo || 1);
+  const st = opts.step ? opts.step(hi - lo) : niceStep(hi - lo || 1);
   lo = opts.min ?? Math.floor(lo / st) * st;
   hi = Math.ceil(hi / st) * st;
   if (hi === lo) hi = lo + st;
@@ -96,7 +96,8 @@ export function lineChart(series, opts) {
   let refLabel = '';
   for (let v = lo; v <= hi + 1e-9; v += st) {
     svg += `<line class="grid" x1="${PAD.l}" x2="${Wd - PAD.r}" y1="${y(v)}" y2="${y(v)}"/>`;
-    yax += `<text class="ax-y" x="${PAD.l - 4}" y="${y(v) + 3}" text-anchor="end">${opts.fmt ? opts.fmt(v) : Math.round(v)}</text>`;
+    const vr = Math.round(v * 100) / 100;
+    yax += `<text class="ax-y" x="${PAD.l - 4}" y="${y(v) + 3}" text-anchor="end">${opts.fmt ? opts.fmt(vr) : Math.round(v)}</text>`;
   }
   svg += dayAxis(times, x, top, bottom);
   if (opts.ref) {

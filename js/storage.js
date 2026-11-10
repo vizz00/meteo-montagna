@@ -9,6 +9,7 @@ const DEFAULTS = {
   sort: 'mio', // 'mio' | 'd1_5' | 'd6_10'
   chart: 'snowTotal', // grafico scelto nel dettaglio
   chartModel: '', // '' = tutti (mediana), altrimenti id del modello
+  windowsOpen: false, // sezione Finestra buona aperta nella pagina del posto
 };
 
 export function loadPrefs() {

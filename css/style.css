@@ -17,12 +17,21 @@
   --snow-3: #6f8dff;
   --snow-4: #8f6bff;
   --snow-5: #b26bff;
+  /* Stessa scala per i numeri: contrasto almeno 4.5:1 sulle schede (WCAG AA) */
+  --snow-t1: #718ad1;
+  --snow-t2: #5984ff;
+  --snow-t3: #6f8dff;
+  --snow-t4: #9775ff;
+  --snow-t5: #b26bff;
   --radius: 14px;
   --tabbar-h: 64px;
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
+
+/* Solo per lettori di schermo */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 html { -webkit-text-size-adjust: 100%; }
 
@@ -176,6 +185,10 @@ main { max-width: 980px; margin: 0 auto; padding: 14px 16px 24px; outline: none;
 .win-avvisi { background: var(--win-warn); }
 .win-chiusa { background: var(--win-closed); }
 .win-meteo, .win-nd { background: transparent; box-shadow: inset 0 0 0 1.5px var(--muted); }
+/* Oltre al colore cambia la forma: ▲ con avvisi, ✕ chiusa (leggibili anche per chi confonde rosso e verde). */
+.win.win-avvisi, .win.win-chiusa { border-radius: 0; -webkit-mask: var(--win-shape) center / contain no-repeat; mask: var(--win-shape) center / contain no-repeat; }
+.win.win-avvisi { --win-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1 15.5 15H.5z'/%3E%3C/svg%3E"); }
+.win.win-chiusa { --win-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 3 13 13M13 3 3 13' stroke='%23000' stroke-width='3.6' stroke-linecap='round'/%3E%3C/svg%3E"); }
 .win-pill.win-aperta, .win-pill.win-avvisi, .win-pill.win-chiusa { color: #0b1220; width: auto; height: auto; border-radius: 999px; }
 .win-pill.win-meteo, .win-pill.win-nd { color: var(--muted); }
 
@@ -524,6 +537,21 @@ body.radar-mode main {
 .win-day details[open] summary { border-bottom: 1px solid var(--line); }
 .win-day .win-body { padding: 8px 14px 10px; }
 .windows h2 .small { font-weight: 400; }
+/* Finestra buona a scomparsa */
+.windows { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 0 12px; }
+.windows > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 52px; cursor: pointer; list-style: none; }
+.windows > summary::-webkit-details-marker { display: none; }
+.windows > summary h2 { margin: 0; }
+.windows .chev { flex: none; width: 22px; height: 22px; color: var(--muted); transition: transform .2s; }
+.windows[open] .chev { transform: rotate(180deg); }
+.windows[open] { padding-bottom: 4px; }
+.windows > summary h2 .small { display: block; font-size: 13px; margin-top: 1px; }
+.windows > summary { padding: 8px 0; }
+.windows .win-day { background: var(--bg-2); }
+.windows .aspect-pick { display: grid; gap: 6px; }
+.windows .aspects { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+.windows .aspect { min-width: 0; min-height: 40px; }
+@media (prefers-reduced-motion: reduce) { .windows .chev { transition: none; } }
 
 /* Preferiti compatti */
 .place.compact { margin-bottom: 10px; }

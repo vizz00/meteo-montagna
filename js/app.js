@@ -62,6 +62,8 @@ function toggleFav(id) {
 }
 
 // Scala colori neve: dal blu al viola con l'intensità (colori fissi solo per la neve).
+// I numeri usano la versione "testo" della scala: abbastanza chiara da leggersi sullo sfondo scuro.
+const snowTextColor = (cm) => snowColor(cm).replace('--snow-', '--snow-t');
 function snowColor(cm) {
   if (cm >= 30) return 'var(--snow-5)';
   if (cm >= 20) return 'var(--snow-4)';
@@ -103,7 +105,8 @@ function windowTitle(w) {
   return lines.join('\n');
 }
 
-// Pallino colorato: verde aperta, giallo con avvisi, rosso chiusa, grigio meteo non buono.
+// Segno colorato: ● verde aperta, ▲ giallo con avvisi, ✕ rosso chiusa, ○ meteo non buono.
+// Forme diverse oltre ai colori: si distinguono anche da chi confonde rosso e verde.
 function windowMark(w) {
   if (!w) return '<span class="win"></span>';
   const t = esc(windowTitle(w));
@@ -131,6 +134,15 @@ const openDays = new Set();
 document.addEventListener(
   'toggle',
   (e) => {
+    // Sezione Finestra buona aperta o chiusa: si ricorda (senza ridisegnare la pagina).
+    if (e.target.matches?.('[data-windows]')) {
+      if (state.prefs.windowsOpen !== e.target.open) {
+        state.prefs = { ...state.prefs, windowsOpen: e.target.open };
+        savePrefs(state.prefs);
+      }
+      if (!e.target.open) openDays.clear(); // chiusa dall'utente: resta chiusa ai ridisegni
+      return;
+    }
     const k = e.target.dataset?.openKey;
     if (!k) return;
     if (e.target.open) openDays.add(k);
@@ -170,7 +182,7 @@ function windowSection(place, band, selDay = null) {
         : main ? main.text.split(':')[0] : '';
       const open = openDays.has(`${place.id}|${d.date}`);
       return `<li class="win-day" id="win-${d.date}"><details data-open-key="${place.id}|${d.date}" ${open ? 'open' : ''}>
-        <summary><span class="win win-${w.status}"></span><span class="cap">${weekday(d.date)} ${dayNum(d.date)}</span><span class="win-why">${esc(why)}</span></summary>
+        <summary><span class="win win-${w.status}" role="img" aria-label="${esc(STATUS_LABEL[w.status])}"></span><span class="cap">${weekday(d.date)} ${dayNum(d.date)}</span><span class="win-why">${esc(why)}</span></summary>
         <div class="win-body"><div><ul class="win-conds">${conds}</ul>${sigs ? `<ul class="win-sigs">${sigs}</ul>` : ''}</div>${rose}</div>
       </details></li>`;
     })
@@ -178,11 +190,14 @@ function windowSection(place, band, selDay = null) {
   const picker = SECTORS.map(
     (a) => `<button type="button" class="aspect" data-aspect="${a}" data-place-aspect="${place.id}" aria-pressed="${mine.includes(a)}">${a}</button>`,
   ).join('');
-  return `<section class="windows">
-    <h2>Finestra buona <span class="muted small">a ${place.elevations[band]} m · regole SLF ed EAWS</span></h2>
+  // A scomparsa: chiusa di solito; aperta se l'utente l'ha lasciata aperta o se arriva toccando un giorno.
+  const open = state.prefs.windowsOpen || (selDay && openDays.has(`${place.id}|${selDay}`));
+  return `<details class="windows" data-windows ${open ? 'open' : ''}>
+    <summary><h2>Finestra buona <span class="muted small">a ${place.elevations[band]} m · regole SLF ed EAWS</span></h2>
+      <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
     <ol class="win-list">${items}</ol>
     <div class="aspect-pick"><span class="muted small">I tuoi versanti</span><div class="aspects">${picker}</div></div>
-  </section>`;
+  </details>`;
 }
 
 function toggleAspect(placeId, aspect) {
@@ -443,7 +458,7 @@ const windArrow = (deg) =>
 function snowDay(d) {
   const cm = roundCm(d.snow?.median ?? 0);
   return cm
-    ? `<span class="fc-cm" style="color:${snowColor(cm)}" title="${d.snow ? `${rangeText(d.snow)} cm tra i modelli` : ''}">${cm}<small>cm</small></span>`
+    ? `<span class="fc-cm" style="color:${snowTextColor(cm)}" title="${d.snow ? `${rangeText(d.snow)} cm tra i modelli` : ''}">${cm}<small>cm</small></span>`
     : '<span class="fc-cm none" aria-hidden="true">·</span>';
 }
 
@@ -531,6 +546,7 @@ function renderOverview() {
     : '';
 
   app.innerHTML = `
+    <h1 class="sr-only">Preferiti</h1>
     ${state.reorder && favs.length > 1 ? reorderList(favs) : sortSwitch()}
     ${status}
     ${state.error && state.forecast ? `<div class="notice">${esc(state.error)}</div>` : ''}
@@ -556,13 +572,14 @@ function favButton(place) {
 
 // ---------- dettaglio del posto: grafici per modello ----------
 
+// step: distanza tra le righe dell'asse verticale (in base all'escursione); tick: testo con l'unità.
 const CHARTS = [
-  { id: 'snowTotal', label: 'Neve totale', unit: 'cm', min: 0, minSpan: 10 },
-  { id: 'snowLine', label: 'Quota neve', unit: 'm', min: 0, ref: 'elev' },
-  { id: 'temp', label: 'Temperatura', unit: '°C', ref: 0 },
-  { id: 'wind', label: 'Vento in quota', unit: 'km/h', min: 0, minSpan: 40, bands: true, arrows: true },
-  { id: 'gust', label: 'Raffiche', unit: 'km/h', min: 0, minSpan: 40, bands: true },
-  { id: 'cloud', label: 'Nuvole', unit: '%', min: 0, max: 100 },
+  { id: 'snowTotal', label: 'Neve totale', unit: 'cm', min: 0, minSpan: 10, step: (r) => (r <= 40 ? 5 : r <= 80 ? 10 : 20), tick: (v) => `${v}cm` },
+  { id: 'snowLine', label: 'Quota neve', unit: 'm', min: 0, ref: 'elev', step: (r) => (r <= 3000 ? 500 : 1000), tick: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1).replace('.0', '')}k` : `${v}`) },
+  { id: 'temp', label: 'Temperatura', unit: '°C', ref: 0, step: (r) => (r <= 40 ? 5 : 10), tick: (v) => `${v}°` },
+  { id: 'wind', label: 'Vento in quota', unit: 'km/h', min: 0, minSpan: 40, bands: true, arrows: true, step: (r) => (r <= 80 ? 10 : 20) },
+  { id: 'gust', label: 'Raffiche', unit: 'km/h', min: 0, minSpan: 40, bands: true, step: (r) => (r <= 80 ? 10 : 20) },
+  { id: 'cloud', label: 'Nuvole', unit: '%', min: 0, max: 100, step: () => 25, tick: (v) => `${v}%` },
 ];
 const WIND_BANDS = [
   { from: 0, to: 20, label: 'debole', cls: 'b-light' },
@@ -606,7 +623,8 @@ function chartBlock(place, band) {
     bands: cur.bands ? WIND_BANDS : null,
     arrows: cur.arrows ? series.median.windDir : null,
     highlight: hl,
-    fmt: cur.id === 'snowLine' ? (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v)) : null,
+    step: cur.step,
+    fmt: cur.tick || null,
   });
   // Valore "in fondo" della linea mediana (o del modello scelto) per la legenda.
   const src = hl ? series.byModel[hl][cur.id] : series.median[cur.id];
@@ -774,6 +792,30 @@ function renderRoute() {
       return renderNotFound();
   }
 }
+
+// Tastiera: nei gruppi a scelta singola (quota, ordine, stagione) e nelle schede dei grafici
+// le frecce passano alla voce vicina e la scelgono, come nelle app native.
+app.addEventListener('keydown', (e) => {
+  const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+  const cur = e.target.closest('[role="radio"], [role="tab"]');
+  if (!step || !cur) return;
+  const group = cur.closest('[role="radiogroup"], [role="tablist"]');
+  const items = [...group.querySelectorAll(`[role="${cur.getAttribute('role')}"]`)];
+  const next = items[(items.indexOf(cur) + step + items.length) % items.length];
+  e.preventDefault();
+  // La schermata viene ridisegnata: si ritrova la voce dai suoi attributi data-*.
+  const sel = [...next.attributes].filter((a) => a.name.startsWith('data-')).map((a) => `[${a.name}="${CSS.escape(a.value)}"]`).join('');
+  next.click();
+  // La pagina del posto si ridisegna anche dopo (dati del dettaglio): per circa un secondo
+  // si rimette il fuoco sulla voce scelta se il ridisegno l'ha perso.
+  let tries = 0;
+  const refocus = () => {
+    const el = (sel && app.querySelector(sel)) || next;
+    if (el.isConnected && document.activeElement !== el && (document.activeElement === document.body || !app.contains(document.activeElement))) el.focus();
+    if (++tries < 20) setTimeout(refocus, 50);
+  };
+  setTimeout(refocus, 0);
+});
 
 // Eventi delegati (i contenuti vengono ridisegnati a ogni cambio).
 app.addEventListener('click', (e) => {
