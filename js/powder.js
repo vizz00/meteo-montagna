@@ -19,6 +19,8 @@ export const POWDER = {
   rainMm: 1,
 };
 
+import { snowRatio } from './snow.js';
+
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const median = (xs) => {
   const v = xs.filter((x) => x != null).sort((a, b) => a - b);
@@ -61,8 +63,11 @@ export function powderDays(days, elev, from = 0) {
     const i = from + k;
     const scores = Object.keys(day.models).map((id) => modelScore(days, i, id, elev)).filter((v) => v != null);
     const score = median(scores);
-    if (score == null) return { date: day.date, level: null, score: null };
+    if (score == null) return { date: day.date, level: null, score: null, ratio: null };
     const level = POWDER.levels.find((l) => score >= l.min);
-    return { date: day.date, level: level.id, label: level.label, score };
+    // Rapporto neve/acqua del giorno (es. 12 = 12:1): mediana dei modelli, dalla temperatura mentre nevica.
+    const ratios = Object.values(day.models).filter((m) => m.snow >= 0.5 && m.tSnow != null).map((m) => snowRatio(m.tSnow));
+    const ratio = median(ratios);
+    return { date: day.date, level: level.id, label: level.label, score, ratio: ratio == null ? null : Math.round(ratio) };
   });
 }
