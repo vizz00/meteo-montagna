@@ -40,9 +40,15 @@ export function getCustomPlace(id) {
   return PLACES.find((p) => p.custom && p.id === id) || null;
 }
 
+/** Un posto qualsiasi (aggiunto da te o predefinito), per poterlo modificare. */
+export function getPlace(id) {
+  return PLACES.find((p) => p.id === id) || null;
+}
+
 /** Aggiunge o aggiorna un posto. Restituisce il posto salvato. */
 export function savePlace(data) {
-  const existing = data.id ? getCustomPlace(data.id) : null;
+  const existing = data.id ? getPlace(data.id) : null;
+  const builtin = existing && !existing.custom ? existing : null;
   const place = {
     id: existing?.id || `${slug(data.name)}-${Date.now().toString(36).slice(-4)}`,
     name: data.name.trim(),
@@ -54,6 +60,25 @@ export function savePlace(data) {
     custom: true,
   };
   if (data.single) place.single = true;
+  if (builtin) {
+    // Posto predefinito modificato: resta una tua copia al posto dell'originale (che si può ripristinare).
+    const moved = Math.abs(builtin.lat - place.lat) > 1e-4 || Math.abs(builtin.lon - place.lon) > 1e-4;
+    const keep = { ...builtin };
+    if (moved) {
+      delete keep.avalancheZone;
+      delete keep.avalancheZoneName;
+      delete keep.wepowder;
+    } else {
+      place.region = builtin.region;
+    }
+    Object.assign(place, { ...keep, name: place.name, lat: place.lat, lon: place.lon, elevations: place.elevations, region: place.region, custom: true, override: true, original: builtin });
+    if (!data.single) delete place.single;
+  } else if (existing?.override) {
+    place.override = true;
+    place.original = existing.original;
+    for (const k of ['avalancheZone', 'avalancheZoneName', 'wepowder', 'cimaLabel']) if (existing[k] !== undefined && Math.abs(existing.lat - place.lat) <= 1e-4 && Math.abs(existing.lon - place.lon) <= 1e-4) place[k] = existing[k];
+    if (existing.cimaLabel === undefined) delete place.cimaLabel;
+  }
   // Provvisorio: visto senza salvarlo nei preferiti. Ne resta uno solo alla volta.
   if (existing ? existing.temp : data.temp) {
     place.temp = true;
@@ -77,7 +102,9 @@ export function keepPlace(id) {
 export function deletePlace(id) {
   const p = getCustomPlace(id);
   if (!p) return;
-  PLACES.splice(PLACES.indexOf(p), 1);
+  // Una copia modificata di un posto predefinito: si torna all'originale.
+  if (p.override && p.original) PLACES.splice(PLACES.indexOf(p), 1, p.original);
+  else PLACES.splice(PLACES.indexOf(p), 1);
   write();
 }
 
@@ -100,7 +127,12 @@ export function importPlaces(list) {
 
 // Avvio: carica i posti salvati.
 for (const p of read()) {
-  if (PLACES.some((q) => q.id === p.id)) continue;
+  const same = PLACES.find((q) => q.id === p.id);
+  if (same && !same.custom && p.override && p.original) {
+    PLACES.splice(PLACES.indexOf(same), 1, { ...p, custom: true, original: same });
+    continue;
+  }
+  if (same) continue;
   const place = { ...p, custom: true };
   ensureRegion(place);
   PLACES.push(place);
