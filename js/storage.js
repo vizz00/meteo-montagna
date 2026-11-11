@@ -2,9 +2,9 @@
 const KEY = 'mm.prefs.v1';
 
 const DEFAULTS = {
-  favorites: [], // alla prima apertura l'elenco è vuoto: i posti si aggiungono da Cerca
+  favorites: [], // posti con la stella, in ordine: stanno in alto
+  // places: tutti i miei posti (cercati o aggiunti); alla prima apertura è vuoto. Lo crea js/app.js.
   band: 'meta',
-  showAll: false,
   aspects: {}, // versanti scelti per posto: { [id]: ['N', 'NE'] }
   sort: 'mio', // 'mio' | 'd1_5' | 'd6_10'
   chart: 'snowTotal', // grafico scelto nel dettaglio

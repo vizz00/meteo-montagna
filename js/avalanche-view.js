@@ -220,6 +220,7 @@ export function avalPage({ places, aval, archiveDay, today }) {
     </form>
     ${mapsSection(places, aval, archive)}
     ${places.map((p) => avalPlaceBlock(p, aval, { archive })).join('')}
+    ${places.length ? '' : '<div class="empty"><p class="empty-title">Nessun posto, per ora</p><p>I posti che cerchi compaiono anche qui, con il loro bollettino.</p><a class="btn" href="#/aggiungi">Cerca un posto</a></div>'}
     <section class="explain">
       <h3>Come leggere</h3>
       ${legend()}

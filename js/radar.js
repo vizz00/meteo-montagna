@@ -66,9 +66,8 @@ function savePref(key, value) {
   }
 }
 
-// Centro della mappa: in mezzo ai posti preferiti, se sono vicini; altrimenti tra Cervino e Monte Rosa.
-function centerFor(places, favorites) {
-  const fav = places.filter((p) => favorites.includes(p.id));
+// Centro della mappa: in mezzo ai miei posti, se sono vicini; altrimenti tra Cervino e Monte Rosa.
+function centerFor(fav) {
   if (!fav.length) return CENTER;
   const lat = fav.reduce((a, p) => a + p.lat, 0) / fav.length;
   const lon = fav.reduce((a, p) => a + p.lon, 0) / fav.length;
@@ -106,9 +105,9 @@ function template() {
  * Mostra la mappa dentro `container`. Se è già montata non la ridisegna
  * (l'app ridisegna la pagina a ogni aggiornamento delle previsioni).
  * @param {HTMLElement} container
- * @param {{places: Array, favorites: string[]}} opts
+ * @param {{places: Array}} opts
  */
-export function mountRadar(container, { places, favorites }) {
+export function mountRadar(container, { places }) {
   if (s && container.contains(s.root)) return;
   unmountRadar();
   container.innerHTML = template();
@@ -116,7 +115,7 @@ export function mountRadar(container, { places, favorites }) {
   const saved = readPref(LAYER_KEY, 'rain');
   s = {
     root,
-    center: centerFor(places, favorites),
+    center: centerFor(places),
     layer: LAYERS.some((l) => l.id === saved) ? saved : 'rain',
   };
   root.querySelectorAll('[data-forecast-layer]').forEach((b) =>

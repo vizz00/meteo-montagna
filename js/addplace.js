@@ -101,7 +101,7 @@ function formHtml(loading) {
           ? `<button class="btn" type="submit" name="action" value="save" ${loading ? 'disabled' : ''}>Salva modifiche</button>
       <button class="btn ghost danger" type="button" data-delete-place>Elimina posto</button>`
           : `<button class="btn" type="submit" name="action" value="view" ${loading ? 'disabled' : ''}>Vedi previsioni →</button>
-      <button class="btn ghost" type="submit" name="action" value="fav" ${loading ? 'disabled' : ''}>★ Salva nei preferiti</button>`
+      <button class="btn ghost" type="submit" name="action" value="fav" ${loading ? 'disabled' : ''}>★ Salva con la stella</button>`
       }
     </div>
   </form>`;
@@ -278,7 +278,7 @@ export function renderAddPage(app, params, { onSaved, onDeleted }) {
     : null;
 
   app.innerHTML = `<div id="add-page">
-    <p class="back"><a href="${editing ? `#/posto/${esc(editing.id)}` : '#/'}">← ${editing ? esc(editing.name) : 'Preferiti'}</a></p>
+    <p class="back"><a href="${editing ? `#/posto/${esc(editing.id)}` : '#/'}">← ${editing ? esc(editing.name) : 'Posti'}</a></p>
     <h1 class="page-title">${editing ? 'Modifica posto' : 'Aggiungi un posto'}</h1>
     ${
       editing
@@ -393,8 +393,6 @@ export function renderAddPage(app, params, { onSaved, onDeleted }) {
       region,
       regionName: region === sel.region ? sel.regionName : regionName(region),
       single,
-      // "Vedi previsioni" senza preferiti: posto provvisorio, sostituito dal prossimo.
-      temp: action === 'view',
     });
     onSaved?.(place, { fav: action === 'fav' });
   });

@@ -28,7 +28,7 @@ export function exportLink(prefs) {
   const places = PLACES.filter((p) => p.custom && !p.temp).map((p) =>
     Object.fromEntries(PLACE_FIELDS.filter((k) => p[k] !== undefined).map((k) => [k, p[k]]))
   );
-  const data = { v: 1, places, favorites: prefs.favorites, aspects: prefs.aspects || {} };
+  const data = { v: 1, places, list: prefs.places, favorites: prefs.favorites, aspects: prefs.aspects || {} };
   const base = location.href.split('#')[0];
   return `${base}#/trasferisci?d=${toBase64Url(JSON.stringify(data))}`;
 }
@@ -47,6 +47,7 @@ export function readCode(text) {
       (p) => p && typeof p.id === 'string' && typeof p.name === 'string' && Number.isFinite(p.lat) && Number.isFinite(p.lon) && p.elevations
     );
     data.favorites = data.favorites.filter((f) => typeof f === 'string');
+    data.list = (Array.isArray(data.list) ? data.list : [...data.favorites, ...data.places.map((p) => p.id)]).filter((f) => typeof f === 'string');
     return data;
   } catch {
     return null;
@@ -55,42 +56,43 @@ export function readCode(text) {
 
 /**
  * Unisce i dati importati a quelli di questo dispositivo: aggiunge i posti che mancano
- * e i preferiti nuovi in fondo, senza togliere niente.
+ * e le stelle nuove in fondo, senza togliere niente.
  * @returns {{prefs: object, addedPlaces: number, addedFavs: number}}
  */
 export function mergeImport(data, prefs) {
-  const addedPlaces = importPlaces(data.places);
+  importPlaces(data.places);
   const known = new Set(PLACES.map((p) => p.id));
   const newFavs = data.favorites.filter((f) => known.has(f) && !prefs.favorites.includes(f));
+  const newList = [...new Set([...data.list, ...data.favorites])].filter((f) => known.has(f) && !prefs.places.includes(f));
   const aspects = { ...(data.aspects || {}), ...(prefs.aspects || {}) };
   return {
-    prefs: { ...prefs, favorites: [...prefs.favorites, ...newFavs], aspects },
-    addedPlaces,
+    prefs: { ...prefs, favorites: [...prefs.favorites, ...newFavs], places: [...prefs.places, ...newList], aspects },
+    addedPlaces: newList.length,
     addedFavs: newFavs.length,
   };
 }
 
 export function transferPage({ prefs, code, result }) {
-  const nPlaces = PLACES.filter((p) => p.custom && !p.temp).length;
+  const nPlaces = prefs.places.length;
   const nFavs = prefs.favorites.length;
   const done = result
     ? `<div class="notice" role="status"><p>${
         result.addedPlaces || result.addedFavs
-          ? `Fatto: ${result.addedFavs} ${result.addedFavs === 1 ? 'preferito aggiunto' : 'preferiti aggiunti'}${
-              result.addedPlaces ? ` (${result.addedPlaces} ${result.addedPlaces === 1 ? 'posto nuovo' : 'posti nuovi'})` : ''
+          ? `Fatto: ${result.addedPlaces} ${result.addedPlaces === 1 ? 'posto aggiunto' : 'posti aggiunti'}${
+              result.addedFavs ? `, ${result.addedFavs} con la stella` : ''
             }.`
-          : 'Avevi già tutti questi posti e preferiti.'
-      }</p><p><a class="btn" href="#/">Vai ai preferiti</a></p></div>`
+          : 'Avevi già tutti questi posti.'
+      }</p><p><a class="btn" href="#/">Vai ai posti</a></p></div>`
     : '';
   const bad = code && !result && !readCode(code)
     ? '<div class="notice error" role="alert"><p>Il codice non è valido: copialo di nuovo per intero dall\'altro dispositivo.</p></div>'
     : '';
   return `<h1 class="page-title">Altro dispositivo</h1>
-    <p class="muted">Per avere gli stessi posti e preferiti sul Mac e sull'iPhone: copia il codice su un dispositivo e incollalo sull'altro.</p>
+    <p class="muted">Per avere gli stessi posti sul Mac e sull'iPhone: copia il codice su un dispositivo e incollalo sull'altro.</p>
     ${done}${bad}
     <section class="transfer">
       <h2>1 · Copia da questo dispositivo</h2>
-      <p>${nFavs} ${nFavs === 1 ? 'preferito' : 'preferiti'}${nPlaces ? `, ${nPlaces} ${nPlaces === 1 ? 'posto aggiunto' : 'posti aggiunti'} da te` : ''}.</p>
+      <p>${nPlaces} ${nPlaces === 1 ? 'posto' : 'posti'}${nFavs ? `, ${nFavs} con la stella` : ''}.</p>
       <div class="transfer-actions">
         <button type="button" class="btn" data-transfer-copy>Copia codice</button>
         ${navigator.share ? '<button type="button" class="btn ghost" data-transfer-share>Invia…</button>' : ''}
