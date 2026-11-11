@@ -1,13 +1,12 @@
 // Schermata Radar: mappa Windy inserita (gratis), con previsione che va avanti
 // fino a ~10 giorni e il radar delle ultime ore. Pulsanti rapidi per gli strati
-// che servono in montagna, ognuno con spiegazione e legenda.
+// che servono in montagna, ognuno con una spiegazione breve.
 
 const CENTER = [45.92, 7.75]; // tra Cervino e Monte Rosa, se non ci sono preferiti
 const ZOOM = 9;
 const LAYER_KEY = 'mm-forecast-layer';
 
-// Ogni strato: come lo chiede Windy, la spiegazione breve e la legenda (dal debole al forte).
-// La legenda dice cosa significano i valori; i colori esatti sono nella barra di Windy sulla mappa.
+// Ogni strato: come lo chiede Windy e la spiegazione breve. I colori sono nella barra di Windy sulla mappa.
 const LAYERS = [
   {
     id: 'rain',
@@ -15,13 +14,6 @@ const LAYERS = [
     overlay: 'rain',
     level: 'surface',
     text: 'Precipitazione prevista ora per ora. I fiocchi sono neve, le gocce pioggia.',
-    unit: 'mm/h',
-    scale: [
-      ['debole', 'sotto 1'],
-      ['moderata', '1–5'],
-      ['forte', '5–10'],
-      ['molto forte', 'oltre 10'],
-    ],
   },
   {
     id: 'snow',
@@ -29,13 +21,6 @@ const LAYERS = [
     overlay: 'snowAccu',
     level: 'surface',
     text: 'Neve nuova che si accumula nel periodo scelto in basso sulla mappa (per esempio i prossimi 3 giorni).',
-    unit: 'cm',
-    scale: [
-      ['spolverata', 'sotto 5'],
-      ['buona', '5–20'],
-      ['tanta', '20–50'],
-      ['enorme', 'oltre 50'],
-    ],
   },
   {
     id: 'wind',
@@ -43,13 +28,6 @@ const LAYERS = [
     overlay: 'wind',
     level: '700h',
     text: 'Vento a circa 3000 m (700 hPa), quello delle creste. Sopra i 40 km/h sposta molta neve e carica i versanti sottovento.',
-    unit: 'km/h',
-    scale: [
-      ['debole', 'sotto 20'],
-      ['moderato', '20–40'],
-      ['forte', '40–60'],
-      ['tempesta', 'oltre 60'],
-    ],
   },
   {
     id: 'gust',
@@ -57,13 +35,6 @@ const LAYERS = [
     overlay: 'gust',
     level: 'surface',
     text: 'Le punte di vento vicino al suolo, più forti del vento medio. Contano per impianti chiusi e per stare in vetta.',
-    unit: 'km/h',
-    scale: [
-      ['deboli', 'sotto 30'],
-      ['moderate', '30–60'],
-      ['forti', '60–90'],
-      ['violente', 'oltre 90'],
-    ],
   },
   {
     id: 'radar',
@@ -72,13 +43,6 @@ const LAYERS = [
     product: 'radar',
     level: 'surface',
     text: 'Precipitazione misurata dai radar nelle ultime ore: cosa sta cadendo adesso, non la previsione. Nelle valli le montagne possono nascondere le precipitazioni basse.',
-    unit: 'intensità',
-    scale: [
-      ['debole', ''],
-      ['moderata', ''],
-      ['forte', ''],
-      ['molto forte', ''],
-    ],
   },
 ];
 
@@ -122,13 +86,6 @@ function windyUrl(layer, center) {
   return `https://embed.windy.com/embed2.html?${q}`;
 }
 
-function legendHtml(layer) {
-  const items = layer.scale
-    .map(([name, range], i) => `<li><i class="lv${i + 1}" aria-hidden="true"></i><b>${esc(name)}</b>${range ? ` <span>${esc(range)}</span>` : ''}</li>`)
-    .join('');
-  return `<p>${esc(layer.text)}</p><ul class="forecast-scale" aria-label="Legenda in ${esc(layer.unit)}">${items}<li class="unit">${esc(layer.unit)}</li></ul>`;
-}
-
 function template() {
   const chips = LAYERS.map(
     (l) => `<button type="button" class="chip" data-forecast-layer="${l.id}" aria-pressed="false">${esc(l.label)}</button>`
@@ -136,11 +93,11 @@ function template() {
   return `<section class="radar forecast" aria-label="Previsione e radar">
     <div class="forecast-bar">
       <div class="forecast-chips">${chips}</div>
-      <button type="button" class="icon-btn forecast-reset" data-forecast-reset aria-label="Chiudi il dettaglio del punto" title="Chiudi il dettaglio del punto">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
-      </button>
     </div>
-    <div class="forecast-info" data-forecast-info aria-live="polite"></div>
+    <div class="forecast-info">
+      <p data-forecast-info aria-live="polite"></p>
+      <button type="button" class="btn ghost small" data-forecast-reset>Chiudi previsione del punto</button>
+    </div>
     <div class="forecast-stage" data-forecast-stage></div>
   </section>`;
 }
@@ -187,7 +144,7 @@ function showWindy() {
   s.root.querySelectorAll('[data-forecast-layer]').forEach((b) =>
     b.setAttribute('aria-pressed', String(b.dataset.forecastLayer === layer.id))
   );
-  s.root.querySelector('[data-forecast-info]').innerHTML = legendHtml(layer);
+  s.root.querySelector('[data-forecast-info]').textContent = layer.text;
   s.root.querySelector('[data-forecast-stage]').innerHTML =
     `<iframe title="Mappa Windy: ${esc(layer.label)}" src="${esc(windyUrl(layer, s.center))}" allowfullscreen></iframe>`;
 }
