@@ -81,6 +81,23 @@ export function deletePlace(id) {
   write();
 }
 
+/** Aggiunge i posti arrivati da un altro dispositivo che qui mancano. Restituisce quanti ne ha aggiunti. */
+export function importPlaces(list) {
+  let added = 0;
+  for (const p of list) {
+    const existing = PLACES.find((q) => q.id === p.id);
+    if (existing && !existing.temp) continue;
+    const place = { ...p, custom: true };
+    delete place.temp;
+    ensureRegion(place);
+    if (existing) PLACES.splice(PLACES.indexOf(existing), 1, place);
+    else PLACES.push(place);
+    added++;
+  }
+  if (added) write();
+  return added;
+}
+
 // Avvio: carica i posti salvati.
 for (const p of read()) {
   if (PLACES.some((q) => q.id === p.id)) continue;
