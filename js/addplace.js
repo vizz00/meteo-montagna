@@ -175,7 +175,7 @@ function placeMarker(lat, lon) {
       radius: 10,
       color: '#ffffff',
       weight: 3,
-      fillColor: '#7aa2ff',
+      fillColor: '#8fe3ff',
       fillOpacity: 1,
     }).addTo(map);
   map.setView([lat, lon], Math.max(map.getZoom(), 12));

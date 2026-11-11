@@ -1,13 +1,13 @@
 {
-  "name": "Meteo montagna",
-  "short_name": "Meteo neve",
+  "name": "Polvere",
+  "short_name": "Polvere",
   "description": "Neve prevista in quota, radar e bollettini valanghe dei posti dove vai.",
   "lang": "it",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0b1220",
-  "theme_color": "#0b1220",
+  "background_color": "#0a1530",
+  "theme_color": "#0a1530",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },

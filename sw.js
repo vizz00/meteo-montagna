@@ -1,6 +1,6 @@
 // Service worker: rende l'app installabile e apribile anche senza rete.
 // Quando cambi i file dell'app, aumenta il numero di VERSION.
-const VERSION = 'v15';
+const VERSION = 'v16';
 const CACHE = `mm-shell-${VERSION}`;
 // Tutti i file dell'app, così funziona senza rete già dalla prima apertura.
 const SHELL = [
@@ -33,6 +33,8 @@ const SHELL = [
   'icons/apple-touch-icon.png',
 ];
 
+const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
+const FONT_CACHE = 'mm-fonts-v1';
 // Con poco segnale (in montagna) non si aspetta la rete più di così: si usa la copia salvata.
 const NET_WAIT_MS = 3000;
 // Dopo un'attesa andata a vuoto, per un minuto si usa subito la copia salvata
@@ -58,6 +60,19 @@ self.addEventListener('activate', (event) => {
 // Le chiamate alle API esterne non passano di qui: l'app tiene già l'ultima previsione.
 self.addEventListener('fetch', (event) => {
   const req = event.request;
+  // Carattere dei titoli (Google Fonts): si scarica una volta, poi si usa la copia salvata anche senza rete.
+  if (req.method === 'GET' && FONT_HOSTS.includes(new URL(req.url).hostname)) {
+    event.respondWith(
+      caches.open(FONT_CACHE).then(async (c) => {
+        const hit = await c.match(req);
+        if (hit) return hit;
+        const res = await fetch(req);
+        if (res.ok || res.type === 'opaque') c.put(req, res.clone());
+        return res;
+      }),
+    );
+    return;
+  }
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
   const fromCache = () => caches.match(req, { ignoreSearch: true });
   const net = fetch(req).then((res) => {
