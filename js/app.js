@@ -825,9 +825,7 @@ function renderDetail(id, params) {
     <div class="detail-head">
       <h1 class="page-title">${esc(place.name)}</h1>
       <div class="head-actions">${
-        place.custom
-          ? `<a class="btn ghost small" href="#/aggiungi?modifica=${place.id}">Modifica o elimina</a>`
-          : `<button type="button" class="btn ghost small" data-remove-place="${place.id}">Elimina</button>`
+        `<button type="button" class="btn ghost small" data-remove-place="${place.id}">Elimina</button>`
       }${favButton(place)}</div>
     </div>
     ${place.single ? `<p class="place-sub">Quota ${place.elevations.valle} m</p>` : ''}
