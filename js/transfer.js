@@ -82,7 +82,7 @@ export function transferPage({ prefs, code, result }) {
               result.addedFavs ? `, ${result.addedFavs} con la stella` : ''
             }.`
           : 'Avevi già tutti questi posti.'
-      }</p><p><a class="btn" href="#/">Vai ai posti</a></p></div>`
+      }</p><p><a class="btn" href="#/">Vai alle località</a></p></div>`
     : '';
   const bad = code && !result && !readCode(code)
     ? '<div class="notice error" role="alert"><p>Il codice non è valido: copialo di nuovo per intero dall\'altro dispositivo.</p></div>'

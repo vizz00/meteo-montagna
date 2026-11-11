@@ -278,7 +278,7 @@ export function renderAddPage(app, params, { onSaved, onDeleted }) {
     : null;
 
   app.innerHTML = `<div id="add-page">
-    <p class="back"><a href="${editing ? `#/posto/${esc(editing.id)}` : '#/'}">← ${editing ? esc(editing.name) : 'Posti'}</a></p>
+    <p class="back"><a href="${editing ? `#/posto/${esc(editing.id)}` : '#/'}">← ${editing ? esc(editing.name) : 'Località'}</a></p>
     <h1 class="page-title">${editing ? 'Modifica posto' : 'Aggiungi un posto'}</h1>
     ${
       editing

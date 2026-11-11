@@ -583,7 +583,7 @@ function renderOverview() {
     : '';
 
   app.innerHTML = `
-    <h1 class="sr-only">Posti</h1>
+    <h1 class="sr-only">Località</h1>
     ${empty ? '' : state.reorder && reorderFavs.length > 1 ? reorderList(reorderFavs) : sortSwitch()}
     ${empty ? '' : status}
     ${state.error && state.forecast ? `<div class="notice">${esc(state.error)}</div>` : ''}
@@ -611,12 +611,12 @@ function favButton(place) {
 
 // step: distanza tra le righe dell'asse verticale (in base all'escursione); tick: testo con l'unità.
 const CHARTS = [
-  { id: 'snowTotal', label: 'Neve totale', unit: 'cm', min: 0, minSpan: 10, step: (r) => (r <= 40 ? 5 : r <= 80 ? 10 : 20), tick: (v) => `${v}cm` },
-  { id: 'snowLine', label: 'Quota neve', unit: 'm', min: 0, ref: 'elev', step: (r) => (r <= 3000 ? 500 : 1000), tick: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1).replace('.0', '')}k` : `${v}`) },
-  { id: 'temp', label: 'Temperatura', unit: '°C', ref: 0, step: (r) => (r <= 40 ? 5 : 10), tick: (v) => `${v}°` },
-  { id: 'wind', label: 'Vento in quota', unit: 'km/h', min: 0, minSpan: 40, bands: true, arrows: true, step: (r) => (r <= 80 ? 10 : 20) },
-  { id: 'gust', label: 'Raffiche', unit: 'km/h', min: 0, minSpan: 40, bands: true, step: (r) => (r <= 80 ? 10 : 20) },
-  { id: 'cloud', label: 'Nuvole', unit: '%', min: 0, max: 100, step: () => 25, tick: (v) => `${v}%` },
+  { id: 'snowTotal', help: "Quanta neve nuova si accumula da oggi in avanti alla quota scelta. Dove la linea sale sta nevicando; dove resta piatta no.", label: 'Neve totale', unit: 'cm', min: 0, minSpan: 10, step: (r) => (r <= 40 ? 5 : r <= 80 ? 10 : 20), tick: (v) => `${v}cm` },
+  { id: 'snowLine', help: "La quota sopra cui cade neve e sotto cui piove. Se la linea sta sotto la quota del posto (la linea dritta) lì nevica, se sta sopra piove.", label: 'Quota neve', unit: 'm', min: 0, ref: 'elev', step: (r) => (r <= 3000 ? 500 : 1000), tick: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1).replace('.0', '')}k` : `${v}`) },
+  { id: 'temp', help: "Temperatura dell'aria alla quota scelta. Sopra 0 °C la neve si bagna e si appesantisce, sotto resta asciutta.", label: 'Temperatura', unit: '°C', ref: 0, step: (r) => (r <= 40 ? 5 : 10), tick: (v) => `${v}°` },
+  { id: 'wind', help: "Vento medio a circa 3000 m, quello delle creste, con la direzione da cui arriva. Sopra i 40 km/h sposta molta neve e carica i versanti sottovento.", label: 'Vento in quota', unit: 'km/h', min: 0, minSpan: 40, bands: true, arrows: true, step: (r) => (r <= 80 ? 10 : 20) },
+  { id: 'gust', help: "Le punte di vento vicino al suolo, più forti del vento medio. Contano per gli impianti e per stare in cresta o in vetta.", label: 'Raffiche', unit: 'km/h', min: 0, minSpan: 40, bands: true, step: (r) => (r <= 80 ? 10 : 20) },
+  { id: 'cloud', help: "Quanta parte del cielo è coperta. Sopra il 75% la luce è piatta e in alto si vede poco.", label: 'Nuvole', unit: '%', min: 0, max: 100, step: () => 25, tick: (v) => `${v}%` },
 ];
 const WIND_BANDS = [
   { from: 0, to: 20, label: 'debole', cls: 'b-light' },
@@ -749,6 +749,7 @@ function chartBlock(place, band) {
     </select></label>`;
   return `<section class="charts">
     <div class="chips scroll" role="tablist" aria-label="Grafico" data-keep-scroll="chart-tabs">${tabs}</div>
+    <p class="chart-help">${esc(cur.help)}</p>
     <div class="chart-bar">${pick}<span class="chart-legend"><span class="lg-med${hl ? ' lg-hl' : ''}"></span>${
       hl ? esc(MODELS.find((m) => m.id === hl).label) : 'mediana'
     } · <span class="lg-model"></span> singoli modelli</span></div>
@@ -777,7 +778,7 @@ function renderDetail(id, params) {
   const card = s ? snowCard(place, { detail: true }) : '';
 
   app.innerHTML = `
-    <p class="back"><a href="${esc(state.backHref || '#/')}" data-back>← ${esc(state.backLabel || 'Posti')}</a></p>
+    <p class="back"><a href="${esc(state.backHref || '#/')}" data-back>← ${esc(state.backLabel || 'Località')}</a></p>
     <div class="detail-head">
       <h1 class="page-title">${esc(place.name)}</h1>
       ${favButton(place)}
@@ -868,7 +869,7 @@ async function copyCode(btn) {
 }
 
 function renderNotFound() {
-  app.innerHTML = `<h1 class="page-title">Pagina non trovata</h1><p><a href="#/">Torna ai posti</a></p>`;
+  app.innerHTML = `<h1 class="page-title">Pagina non trovata</h1><p><a href="#/">Torna alle località</a></p>`;
 }
 
 // Posti aggiunti dall'utente (js/myplaces.js li inserisce in PLACES).
@@ -1017,7 +1018,7 @@ app.addEventListener('change', (e) => {
 });
 
 // Da quale scheda si è arrivati al posto, per il link "indietro".
-const BACK_LABEL = { panoramica: 'Posti', valanghe: 'Valanghe', radar: 'Radar', stagione: 'Stagione' };
+const BACK_LABEL = { panoramica: 'Località', valanghe: 'Valanghe', radar: 'Radar', stagione: 'Stagione' };
 let prevHash = location.hash;
 window.addEventListener('hashchange', () => {
   const from = route(prevHash);
