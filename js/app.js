@@ -90,6 +90,36 @@ function removePlace(id) {
   refresh(false);
 }
 
+// Toglie un posto dall'elenco con la X e offre "Annulla" per qualche secondo.
+let toastTimer;
+function dropPlace(id) {
+  const place = placeById(id);
+  const prev = state.prefs;
+  state.prefs = { ...prev, favorites: prev.favorites.filter((f) => f !== id), places: prev.places.filter((f) => f !== id) };
+  savePrefs(state.prefs);
+  render();
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.className = 'toast';
+    t.setAttribute('role', 'status');
+    document.body.append(t);
+  }
+  t.innerHTML = `<span>${esc(place?.name || 'Posto')} tolto</span><button type="button" data-undo>Annulla</button>`;
+  t.hidden = false;
+  t.querySelector('[data-undo]').onclick = () => {
+    clearTimeout(toastTimer);
+    t.hidden = true;
+    state.prefs = prev;
+    savePrefs(prev);
+    render();
+    refresh(false);
+  };
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (t.hidden = true), 6000);
+}
+
 // Scala colori neve: dal blu al viola con l'intensità (colori fissi solo per la neve).
 // I numeri usano la versione "testo" della scala: abbastanza chiara da leggersi sullo sfondo scuro.
 const snowTextColor = (cm) => snowColor(cm).replace('--snow-', '--snow-t');
@@ -411,6 +441,7 @@ function placeHead(place, band = overviewBand(place), side = null) {
       <p class="place-sub">${place.elevations[band]} m${side ? '' : ` · ${esc(region?.name || '')}`}</p>
     </a>
     ${side ?? `<a class="go" href="#/posto/${place.id}" aria-label="Apri ${esc(place.name)}">›</a>`}
+    <button type="button" class="x-btn" data-drop="${place.id}" aria-label="Togli ${esc(place.name)} dall'elenco" title="Togli dall'elenco">✕</button>
   </header>`;
 }
 
@@ -749,7 +780,11 @@ function chartBlock(place, band) {
     </select></label>`;
   return `<section class="charts">
     <div class="chips scroll" role="tablist" aria-label="Grafico" data-keep-scroll="chart-tabs">${tabs}</div>
-    <p class="chart-help">${esc(cur.help)}</p>
+    <p class="chart-help">${esc(cur.help)}</p>${
+      cur.id === 'snowTotal'
+        ? `<p class="chart-help"><b>SLR</b> (rapporto neve/acqua): quanti cm di neve vengono da 1 mm di acqua. Vicino a 0 °C è circa 10:1, neve pesante e bagnata; sotto −8 °C arriva a 15:1, neve leggera e polverosa. Qui lo usiamo per stimare i cm.</p>`
+        : ''
+    }
     <div class="chart-bar">${pick}<span class="chart-legend"><span class="lg-med${hl ? ' lg-hl' : ''}"></span>${
       hl ? esc(MODELS.find((m) => m.id === hl).label) : 'mediana'
     } · <span class="lg-model"></span> singoli modelli</span></div>
@@ -781,12 +816,12 @@ function renderDetail(id, params) {
     <p class="back"><a href="${esc(state.backHref || '#/')}" data-back>← ${esc(state.backLabel || 'Località')}</a></p>
     <div class="detail-head">
       <h1 class="page-title">${esc(place.name)}</h1>
-      ${favButton(place)}
+      <div class="head-actions">${
+        place.custom ? `<a class="btn ghost small" href="#/aggiungi?modifica=${place.id}">Modifica o elimina</a>` : ''
+      }${favButton(place)}</div>
     </div>
-    <p class="place-sub">${place.single ? `Quota ${place.elevations.valle} m · ` : ''}${
-      place.custom
-        ? `<a href="#/aggiungi?modifica=${place.id}">Modifica o elimina</a>`
-        : `<button type="button" class="linklike" data-remove-place="${place.id}">Togli dall'elenco</button>`
+    <p class="place-sub">${place.single ? `Quota ${place.elevations.valle} m` : ''}${place.single && !place.custom ? ' · ' : ''}${
+      place.custom ? '' : `<button type="button" class="linklike" data-remove-place="${place.id}">Togli dall'elenco</button>`
     }</p>
     ${place.single ? '' : `<div class="toolbar">${bandSwitch(place)}</div>`}
     <div class="detail-card">${card.replace(/<header[\s\S]*?<\/header>/, '').replace(/<footer[\s\S]*<\/footer>/, '')}</div>
@@ -995,6 +1030,8 @@ app.addEventListener('click', (e) => {
   if (chartBtn) return setPrefs({ chart: chartBtn.dataset.chart });
   const bandBtn = e.target.closest('[data-band]');
   if (bandBtn) return setPrefs({ band: bandBtn.dataset.band });
+  const drop = e.target.closest('[data-drop]');
+  if (drop) return dropPlace(drop.dataset.drop);
   const fav = e.target.closest('[data-fav]');
   if (fav) return toggleFav(fav.dataset.fav);
   const asp = e.target.closest('[data-aspect]');
