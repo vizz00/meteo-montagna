@@ -30,33 +30,62 @@ const ui = { sel: null }; // giorno selezionato (chiave → giorno)
 
 function ensureLoaded(place, elev, season, rerender) {
   const key = `${place.id}|${elev}|${season.year}`;
-  if (loads.has(key)) return loads.get(key);
+  // I bollettini di un altro posto ancora in download si fermano: altrimenti centinaia di
+  // richieste rallentano quelle del posto appena scelto. Si riprendono se ci si torna.
+  for (const [k, v] of loads) {
+    if (!k.startsWith(`${place.id}|`) && v.avCtrl && !v.av && !v.avError) v.avCtrl.abort();
+  }
+  const old = loads.get(key);
+  // Un download andato male non resta in memoria: tornando sul posto si riprova
+  // (non subito, per non martellare il server se è giù; il pulsante Riprova invece è immediato).
+  if (old && !(old.failed && Date.now() - old.failedAt > 30000)) return old;
+  if (old) loads.delete(key);
   const entry = { wx: null, wxError: null, av: null, avError: null, progress: [0, 0] };
   loads.set(key, entry);
-  loadSeasonWeather(place, elev, season)
+  const draw = () => loads.get(key) === entry && rerender();
+  const wxPromise = loadSeasonWeather(place, elev, season)
     .then((wx) => (entry.wx = wx))
     .catch((err) => {
       console.error(err);
       entry.wxError = "Non riesco a scaricare l'archivio meteo.";
+      entry.failed = true;
+      entry.failedAt = Date.now();
     })
-    .finally(rerender);
+    .finally(draw);
   // Le valanghe non dipendono dalla quota: si riusa il caricamento di un'altra quota se c'è.
-  const shared = [...loads.entries()].find(([k, v]) => k !== key && k.startsWith(`${place.id}|`) && k.endsWith(`|${season.year}`) && v.avPromise);
-  entry.avPromise = shared
-    ? shared[1].avPromise
-    : loadSeasonAvalanche(place, season, {
+  const shared = [...loads.entries()].find(
+    ([k, v]) => k !== key && k.startsWith(`${place.id}|`) && k.endsWith(`|${season.year}`) && v.avPromise && !v.avCtrl?.signal.aborted,
+  );
+  if (shared) {
+    entry.avPromise = shared[1].avPromise;
+    entry.avCtrl = shared[1].avCtrl;
+  } else {
+    entry.avCtrl = new AbortController();
+    // Prima il meteo, poi i bollettini: così il meteo arriva subito anche con poca rete.
+    entry.avPromise = wxPromise.then(() =>
+      loadSeasonAvalanche(place, season, {
+        signal: entry.avCtrl.signal,
         onProgress: (a, b) => {
           entry.progress = [a, b];
-          if (b > 20 && a % 15 === 0) rerender();
+          if (b > 20 && a % 15 === 0) draw();
         },
-      });
+      }),
+    );
+  }
   entry.avPromise
     .then((av) => (entry.av = av))
     .catch((err) => {
+      if (err?.name === 'AbortError') {
+        entry.failed = true; // interrotto: si riparte subito quando si torna sul posto
+        entry.failedAt = 0;
+        return;
+      }
       console.error(err);
       entry.avError = 'Non riesco a scaricare i bollettini.';
+      entry.failed = true;
+      entry.failedAt = Date.now();
     })
-    .finally(rerender);
+    .finally(draw);
   return entry;
 }
 
@@ -350,7 +379,7 @@ export function renderSeason(app, params, { places, prefs, isFav, rerender }) {
   // Riprova: si dimenticano i download falliti e si riparte.
   app.querySelectorAll('[data-season-retry]').forEach((b) =>
     b.addEventListener('click', () => {
-      for (const [k, v] of loads) if (v.wxError || v.avError) loads.delete(k);
+      for (const [k, v] of loads) if (v.failed) loads.delete(k);
       rerender();
     }),
   );
