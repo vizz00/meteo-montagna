@@ -12,7 +12,7 @@ const RAW = [
   ['Valgrisenche', 45.6, 7.08, 'IT-23', 1660, 2500, 3100],
   ['Rhêmes-Notre-Dame', 45.5, 7.1, 'IT-23', 1700, 2500, 3200],
   ['Valtournenche', 45.88, 7.62, 'IT-23', 1550, 2300, 3000],
-  ['Colle del Gran San Bernardo', 45.869, 7.17, 'IT-23', 1900, 2500, 3000],
+  ['Colle del Gran San Bernardo', 45.869, 7.17, 'IT-23', 1500, 2500, 3000],
   ['Torgnon', 45.8, 7.6, 'IT-23', 1500, 2200, 2700],
   // Piemonte
   ['Macugnaga', 45.97, 7.97, 'IT-21', 1330, 2200, 2800],
