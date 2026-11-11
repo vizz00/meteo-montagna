@@ -686,3 +686,29 @@ select.sort-sel option { color: #0a1530; background: #fff; }
 .brand-dot { color: var(--accent); }
 h1, h2, h3, .page-title, .summary-main, .total-num, .place-head .ss-cell b, .dl { font-family: var(--display); }
 .place-title h2, .page-title { font-weight: 800; letter-spacing: -.01em; }
+
+/* Radar: scelta tra ultime 2 ore e previsione (mappa Windy inserita) */
+.radar-modes {
+  flex: none; display: flex; gap: 6px; padding: 8px 12px;
+  background: var(--bg-2); border-bottom: 1px solid var(--line);
+}
+.radar-modes button {
+  flex: 1; max-width: 220px; min-height: 40px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; font-weight: 600;
+}
+.radar-modes button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #0a1530; }
+.radar-modes button:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+.radar [hidden] { display: none !important; }
+.forecast { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.forecast-bar {
+  flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  background: var(--bg-2); border-bottom: 1px solid var(--line);
+}
+.forecast-chips { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.forecast-chips::-webkit-scrollbar { display: none; }
+.forecast-chips .chip { flex: none; white-space: nowrap; }
+.forecast-chips .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #0a1530; font-weight: 700; }
+.forecast-reset { flex: none; width: 40px; height: 40px; }
+.forecast-reset svg { width: 20px; height: 20px; }
+.forecast-stage { position: relative; flex: 1; min-height: 0; background: #0e1626; }
+.forecast-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }

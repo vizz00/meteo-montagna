@@ -11,6 +11,25 @@ const LAST_FRAME_PAUSE_MS = 1800;
 const RELOAD_MS = 5 * 60 * 1000;
 const RADAR_OPACITY = 0.8;
 const BASE_KEY = 'mm-radar-base';
+const MODE_KEY = 'mm-radar-mode';
+const LAYER_KEY = 'mm-forecast-layer';
+
+// Previsione: mappa Windy inserita (gratis, va avanti fino a ~10 giorni).
+const WINDY_LAYERS = [
+  { id: 'rain', label: 'Pioggia/neve', overlay: 'rain', level: 'surface' },
+  { id: 'snow', label: 'Neve fresca', overlay: 'snowAccu', level: 'surface' },
+  { id: 'wind', label: 'Vento 3000', overlay: 'wind', level: '700h' },
+  { id: 'gust', label: 'Raffiche', overlay: 'gust', level: 'surface' },
+];
+function windyUrl(layer) {
+  const q = new URLSearchParams({
+    type: 'map', location: 'coordinates', lat: String(CENTER[0]), lon: String(CENTER[1]), zoom: String(START_ZOOM),
+    overlay: layer.overlay, product: 'ecmwf', level: layer.level,
+    metricRain: 'mm', metricTemp: '°C', metricWind: 'km/h', metricSnow: 'cm',
+    calendar: 'now', menu: '', message: 'true', marker: '', pressure: '', detail: '',
+  });
+  return `https://embed.windy.com/embed2.html?${q}`;
+}
 
 export const METEOSWISS_RADAR_URL = 'https://www.meteosvizzera.admin.ch/servizi-e-pubblicazioni/applicazioni/precipitazioni.html';
 const RAINVIEWER_URL = 'https://www.rainviewer.com/map.html';
@@ -31,26 +50,44 @@ function ago(unix) {
   return m ? `${h} h ${m} min fa` : `${h} h fa`;
 }
 
-function readBase() {
+function readPref(key, fallback) {
   try {
-    return localStorage.getItem(BASE_KEY) || 'scura';
+    return localStorage.getItem(key) || fallback;
   } catch {
-    return 'scura';
+    return fallback;
   }
 }
-function saveBase(name) {
+function savePref(key, value) {
   try {
-    localStorage.setItem(BASE_KEY, name);
+    localStorage.setItem(key, value);
   } catch {
-    /* nessun problema: si torna alla mappa scura */
+    /* nessun problema: si torna alla scelta predefinita */
   }
 }
+const readBase = () => readPref(BASE_KEY, 'scura');
+const saveBase = (name) => savePref(BASE_KEY, name);
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 function template() {
+  const chips = WINDY_LAYERS.map(
+    (l) => `<button type="button" class="chip" data-forecast-layer="${l.id}" aria-pressed="false">${esc(l.label)}</button>`
+  ).join('');
   return `<section class="radar" aria-label="Radar precipitazioni">
-    <div class="radar-stage">
+    <div class="radar-modes" role="tablist" aria-label="Radar o previsione">
+      <button type="button" role="tab" data-radar-mode="radar" aria-selected="true">Ultime 2 ore</button>
+      <button type="button" role="tab" data-radar-mode="previsione" aria-selected="false">Previsione</button>
+    </div>
+    <div class="forecast" data-forecast hidden>
+      <div class="forecast-bar">
+        <div class="forecast-chips">${chips}</div>
+        <button type="button" class="icon-btn forecast-reset" data-forecast-reset aria-label="Chiudi il dettaglio del punto" title="Chiudi il dettaglio del punto">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="forecast-stage" data-forecast-stage></div>
+    </div>
+    <div class="radar-stage" data-radar-part>
       <div id="radar-map" class="radar-map" role="region" aria-label="Mappa radar"></div>
       <p class="radar-msg" data-radar-msg role="status">Carico la mappa…</p>
       <details class="radar-legend" data-radar-legend>
@@ -61,7 +98,7 @@ function template() {
         <p class="legend-note">Pioggia o neve stimata dal radar al suolo, non alla quota dei posti. Nelle valli alpine le montagne possono nascondere le precipitazioni basse.</p>
       </details>
     </div>
-    <div class="radar-panel">
+    <div class="radar-panel" data-radar-part>
       <div class="radar-controls">
         <button type="button" class="play" data-radar-play aria-label="Avvia animazione" disabled>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-play" fill="currentColor" d="M8 5v14l11-7z"/><path class="i-pause" fill="currentColor" d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg>
@@ -116,6 +153,13 @@ export function mountRadar(container, { places, favorites }) {
   };
   const mine = s;
 
+  root.querySelectorAll('[data-radar-mode]').forEach((b) =>
+    b.addEventListener('click', () => setMode(b.dataset.radarMode))
+  );
+  root.querySelectorAll('[data-forecast-layer]').forEach((b) =>
+    b.addEventListener('click', () => setLayer(b.dataset.forecastLayer))
+  );
+  root.querySelector('[data-forecast-reset]').addEventListener('click', () => showWindy(true));
   s.el.play.addEventListener('click', () => (s.playing ? pause() : play()));
   s.el.slider.addEventListener('input', () => {
     pause();
@@ -125,7 +169,46 @@ export function mountRadar(container, { places, favorites }) {
     if (e.target.closest('[data-radar-retry]')) (s.map ? loadFrames() : start());
   });
   document.addEventListener('visibilitychange', onVisibility);
+  s.mode = 'radar';
+  s.layer = WINDY_LAYERS.some((l) => l.id === readPref(LAYER_KEY, '')) ? readPref(LAYER_KEY, '') : 'rain';
   start();
+  if (readPref(MODE_KEY, 'radar') === 'previsione') setMode('previsione');
+}
+
+function setMode(mode) {
+  s.mode = mode === 'previsione' ? 'previsione' : 'radar';
+  savePref(MODE_KEY, s.mode);
+  const fc = s.mode === 'previsione';
+  s.root.querySelectorAll('[data-radar-mode]').forEach((b) =>
+    b.setAttribute('aria-selected', String(b.dataset.radarMode === s.mode))
+  );
+  s.root.querySelector('[data-forecast]').hidden = !fc;
+  s.root.querySelectorAll('[data-radar-part]').forEach((el) => (el.hidden = fc));
+  if (fc) {
+    if (s.playing) pause();
+    showWindy(false);
+  } else if (s.map) {
+    s.map.invalidateSize();
+  }
+}
+
+function setLayer(id) {
+  if (!WINDY_LAYERS.some((l) => l.id === id)) return;
+  s.layer = id;
+  savePref(LAYER_KEY, id);
+  showWindy(true);
+}
+
+// Crea (o ricrea) la mappa Windy. Ricrearla è anche l'unico modo per chiudere
+// il dettaglio del punto che Windy apre quando si tocca la mappa.
+function showWindy(force) {
+  const stage = s.root.querySelector('[data-forecast-stage]');
+  const layer = WINDY_LAYERS.find((l) => l.id === s.layer) || WINDY_LAYERS[0];
+  s.root.querySelectorAll('[data-forecast-layer]').forEach((b) =>
+    b.setAttribute('aria-pressed', String(b.dataset.forecastLayer === layer.id))
+  );
+  if (!force && stage.querySelector('iframe')) return;
+  stage.innerHTML = `<iframe title="Previsione Windy: ${esc(layer.label)}" src="${esc(windyUrl(layer))}" allowfullscreen></iframe>`;
 }
 
 function start() {
