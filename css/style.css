@@ -669,7 +669,7 @@ main:focus { outline: none; }
 .place-head .ss-k { white-space: nowrap; }
 .place-head .ss-cell b { font-size: 21px; white-space: nowrap; }
 .place-head:has(.ss) { padding: 10px 14px 8px; }
-.fc-wd { font-size: 12px; text-transform: none; }
+.fc-wd { text-transform: none; }
 .fc-wd.today { color: var(--accent); font-weight: 700; }
 .fc-max { font-size: 13px; font-weight: 500; color: var(--muted); }
 .fc-day .fc-w { color: var(--text); }

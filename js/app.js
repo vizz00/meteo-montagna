@@ -495,7 +495,7 @@ function forecastCard(place) {
     .slice(0, 7)
     .map(
       (d, i) => `<a class="fc-day" href="#/posto/${place.id}?giorno=${d.date}">
-        <span class="fc-wd ${isWeekend(d.date) ? 'we' : ''}${i === 0 ? ' today' : ''}" title="${esc(longDay(d.date))}">${DAY_LETTER[dayDate(d.date).getDay()]} ${dayNum(d.date)}</span>
+        <span class="fc-wd ${isWeekend(d.date) ? 'we' : ''}${i === 0 ? ' today' : ''}" title="${esc(longDay(d.date))}">${weekday(d.date)} ${dayNum(d.date)}</span>
         <span class="fc-max" title="Massima ${d.tMax != null ? Math.round(d.tMax) : '–'}°, minima ${d.tMin != null ? Math.round(d.tMin) : '–'}°">${d.tMax != null ? Math.round(d.tMax) : '–'}°</span>
         ${dayIcon(d)}
         ${snowDay(d)}
