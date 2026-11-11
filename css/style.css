@@ -532,9 +532,9 @@ body.radar-mode main {
 /* Qualità della polvere */
 .sc-day { grid-template-rows: 16px 58px 14px 14px 12px; }
 .pw { display: inline-block; width: 70%; max-width: 18px; height: 6px; border-radius: 3px; background: var(--line); align-self: center; }
-.pw-ottima { background: #b26bff; }
-.pw-buona { background: #4f7cff; }
-.pw-discreta { background: #8b98b8; }
+.pw-ottima { background: #ff5fa8; }
+.pw-buona { background: #ff9f43; }
+.pw-discreta { background: #d6c9a8; }
 .pw-vuota, .pw-no, .pw-nd { background: transparent; box-shadow: none; }
 .pw-legend { margin: 6px 0 0; font-size: 11px; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
 .pw-legend .pw { width: 14px; margin-left: 6px; }
