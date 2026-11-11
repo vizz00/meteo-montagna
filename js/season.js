@@ -208,6 +208,21 @@ function writeStore(key, value) {
   }
 }
 
+// fetch con tempo massimo: sul telefono una richiesta può restare appesa per sempre
+// (app in background, rete che cambia) e la pagina resterebbe su "Scarico…".
+async function fetchTimeout(url, ms, signal) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  const stop = () => ctrl.abort();
+  signal?.addEventListener('abort', stop);
+  try {
+    return await fetch(url, { signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', stop);
+  }
+}
+
 /** Meteo giornaliero della stagione alla quota. Usa la copia salvata se recente. */
 export async function loadSeasonWeather(place, elev, season, { force = false } = {}) {
   const url = archiveUrl(place, elev, season.from, season.to);
@@ -217,14 +232,27 @@ export async function loadSeasonWeather(place, elev, season, { force = false } =
   const fresh = c && c.to === season.to && (!season.current || Date.now() - c.fetchedAt < WX_MAX_AGE_MS);
   if (!force && fresh) return c;
   try {
-    const res = await fetch(url);
+    // Un secondo tentativo dopo una pausa breve: Open-Meteo ogni tanto risponde 429/5xx.
+    let res;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        res = await fetchTimeout(url, 25000);
+        if (res.ok || attempt >= 1 || (res.status < 500 && res.status !== 429)) break;
+      } catch (err) {
+        if (attempt >= 1) throw err;
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
     if (!res.ok) throw new Error(`Open-Meteo ha risposto ${res.status}`);
     const days = dailyFromHourly(await res.json(), elev);
     const entry = { to: season.to, fetchedAt: Date.now(), days };
+    // Si rilegge la copia salvata adesso: nel frattempo altri posti possono averla aggiornata.
+    const now = readStore(WX_CACHE_KEY) || {};
+    delete now[key];
     // Si tengono al massimo 12 serie (posto × quota × stagione) per non riempire il browser.
-    const keys = Object.keys(store).sort((a, b) => store[a].fetchedAt - store[b].fetchedAt);
-    while (keys.length >= 12) delete store[keys.shift()];
-    writeStore(WX_CACHE_KEY, { ...store, [key]: entry });
+    const keys = Object.keys(now).sort((a, b) => now[a].fetchedAt - now[b].fetchedAt);
+    while (keys.length >= 12) delete now[keys.shift()];
+    writeStore(WX_CACHE_KEY, { ...now, [key]: entry });
     return entry;
   } catch (err) {
     if (c) return { ...c, stale: true };
@@ -232,8 +260,8 @@ export async function loadSeasonWeather(place, elev, season, { force = false } =
   }
 }
 
-async function getJson(url) {
-  const r = await fetch(url);
+async function getJson(url, signal) {
+  const r = await fetchTimeout(url, 15000, signal);
   if (r.status === 404 || r.status === 403) return null; // nessun bollettino quel giorno
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
@@ -249,7 +277,7 @@ export async function placeZone(place) {
  * Valanghe giorno per giorno per la micro-zona del posto.
  * `onProgress(fatti, totale)` per la barra di avanzamento. I giorni passati restano salvati nel browser.
  */
-export async function loadSeasonAvalanche(place, season, { onProgress } = {}) {
+export async function loadSeasonAvalanche(place, season, { onProgress, signal } = {}) {
   const zone = await placeZone(place);
   if (!zone) return { zone: null, byDay: {} };
   const region = providerCode(place.region);
@@ -267,11 +295,11 @@ export async function loadSeasonAvalanche(place, season, { onProgress } = {}) {
   onProgress?.(done, total);
   let failed = 0;
   const worker = async () => {
-    while (todo.length) {
+    while (todo.length && !signal?.aborted) {
       const day = todo.shift();
       try {
         const base = `${BULLETIN_BASE}/${day}/${day}-${region}`;
-        const [r, p] = await Promise.all([getJson(`${base}.ratings.json`), getJson(`${base}.problems.json`)]);
+        const [r, p] = await Promise.all([getJson(`${base}.ratings.json`, signal), getJson(`${base}.problems.json`, signal)]);
         byDay[day] = avalDay(r, p, zone);
         // Un giorno passato senza bollettino si salva solo se è vecchio (i bollettini escono la sera prima).
         if (day < addDays(today, -2) || byDay[day]) saved[day] = byDay[day] || 0;
@@ -284,6 +312,8 @@ export async function loadSeasonAvalanche(place, season, { onProgress } = {}) {
     }
   };
   await Promise.all(Array.from({ length: 6 }, worker));
-  writeStore(AV_CACHE_KEY, { ...store, [zone]: saved });
+  // Si salva anche se interrotto: i giorni già scaricati non si riscaricano.
+  writeStore(AV_CACHE_KEY, { ...(readStore(AV_CACHE_KEY) || {}), [zone]: saved });
+  if (signal?.aborted) throw new DOMException('Interrotto', 'AbortError');
   return { zone, byDay, failed };
 }
