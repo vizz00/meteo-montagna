@@ -825,12 +825,12 @@ function renderDetail(id, params) {
     <div class="detail-head">
       <h1 class="page-title">${esc(place.name)}</h1>
       <div class="head-actions">${
-        place.custom ? `<a class="btn ghost small" href="#/aggiungi?modifica=${place.id}">Modifica o elimina</a>` : ''
+        place.custom
+          ? `<a class="btn ghost small" href="#/aggiungi?modifica=${place.id}">Modifica o elimina</a>`
+          : `<button type="button" class="btn ghost small" data-remove-place="${place.id}">Togli dall'elenco</button>`
       }${favButton(place)}</div>
     </div>
-    <p class="place-sub">${place.single ? `Quota ${place.elevations.valle} m` : ''}${place.single && !place.custom ? ' · ' : ''}${
-      place.custom ? '' : `<button type="button" class="linklike" data-remove-place="${place.id}">Togli dall'elenco</button>`
-    }</p>
+    ${place.single ? `<p class="place-sub">Quota ${place.elevations.valle} m</p>` : ''}
     ${place.single ? '' : `<div class="toolbar">${bandSwitch(place)}</div>`}
     <div class="detail-card">${card.replace(/<header[\s\S]*?<\/header>/, '').replace(/<footer[\s\S]*<\/footer>/, '')}</div>
     ${chartBlock(place, band)}
