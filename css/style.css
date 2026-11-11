@@ -359,74 +359,11 @@ body.radar-mode main {
   max-width: none; padding: 0;
 }
 .radar { display: flex; flex-direction: column; height: 100%; }
-.radar-stage { position: relative; flex: 1; min-height: 0; }
-.radar-map { position: absolute; inset: 0; z-index: 0; background: #0e1626; }
-.radar-msg {
-  position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  margin: 0; max-width: calc(100% - 32px); padding: 12px 14px; text-align: center;
-  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); color: var(--text);
-}
-.radar-msg .btn { display: flex; margin: 10px auto 0; }
-.radar-msg[hidden] { display: none; }
-
-.radar-legend {
-  position: absolute; z-index: 2; left: 10px; bottom: 26px;
-  max-width: min(270px, calc(100% - 20px));
-  background: color-mix(in srgb, var(--bg-2) 92%, transparent);
-  border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; font-size: 13px;
-}
-.radar-legend summary { min-height: 40px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
-.radar-legend[open] { padding-bottom: 10px; }
-.legend-row { display: grid; grid-template-columns: 60px 1fr; align-items: center; gap: 8px; margin: 4px 0; color: var(--muted); }
-.ramp { display: block; height: 10px; border-radius: 5px; }
-/* Colori RainViewer "Universal Blue", da debole a forte */
-.ramp.rain { background: linear-gradient(90deg, #b6a97e, #88ddee, #00a3e0, #004768, #ffee00, #ff8100, #ff4400, #a80000, #ffaaff, #ffffff); }
-.ramp.snow { background: linear-gradient(90deg, #c7ffff, #9fdfff, #7fbfff, #4f8fff, #1f5fff, #0000ff); }
-.legend-scale { display: flex; justify-content: space-between; margin-left: 68px; color: var(--muted); font-size: 11px; }
-.legend-note { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.35; }
-
-.radar-panel { flex: none; background: var(--bg-2); border-top: 1px solid var(--line); padding: 10px 16px 8px; }
-.radar-controls { display: flex; align-items: center; gap: 14px; max-width: 980px; margin: 0 auto; }
-.play {
-  flex: none; width: 56px; height: 56px; display: grid; place-items: center;
-  border: 0; border-radius: 50%; background: var(--accent); color: #0a1530; cursor: pointer;
-}
-.play:disabled { opacity: .4; cursor: default; }
-.play svg { width: 28px; height: 28px; }
-.play .i-pause, .play.playing .i-play { display: none; }
-.play.playing .i-pause { display: inline; }
-.radar-time { flex: 1; min-width: 0; }
-.radar-time input[type="range"] { width: 100%; height: 36px; margin: 0; accent-color: var(--accent); cursor: pointer; }
-.radar-time input[type="range"]::-webkit-slider-thumb { width: 28px; height: 28px; }
-.radar-clock { margin: 0; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
-.radar-clock b { color: var(--text); font-size: 18px; margin-right: 4px; }
-.radar-meta {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px;
-  max-width: 980px; margin: 8px auto 0; color: var(--muted); font-size: 12px;
-}
 .btn.small { min-height: 36px; padding: 0 12px; font-size: 14px; }
-
-/* Elementi Leaflet nel tema scuro */
-.radar .leaflet-container { font: inherit; background: #0e1626; }
-.radar .leaflet-control-attribution { background: rgba(11, 18, 32, .75); color: var(--muted); font-size: 10px; }
-.radar .leaflet-control-attribution a { color: var(--muted); }
-.radar .leaflet-bar a, .radar .leaflet-control-layers {
-  background: var(--bg-2); color: var(--text); border-color: var(--line);
-}
-.radar .leaflet-bar a { width: 40px; height: 40px; line-height: 40px; }
-.radar .leaflet-control-layers-expanded { padding: 8px 12px; font-size: 14px; }
-.radar .leaflet-popup-content-wrapper, .radar .leaflet-popup-tip { background: var(--bg-2); color: var(--text); }
-.radar-label.leaflet-tooltip {
-  background: rgba(11, 18, 32, .82); color: var(--text); border: 0; box-shadow: none;
-  font-size: 12px; font-weight: 600; padding: 2px 6px;
-}
-.radar-label.leaflet-tooltip::before { display: none; }
 
 @media (min-width: 900px) {
   body.radar-mode main { bottom: 0; }
 }
-.radar .leaflet-control-layers-toggle { filter: invert(1) hue-rotate(180deg); background-color: transparent; }
-.radar .radar-base-dark { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6); }
 
 /* ---------- Preferiti: schede Neve e Previsione ---------- */
 .place-title { color: var(--text); text-decoration: none; }
@@ -687,19 +624,7 @@ select.sort-sel option { color: #0a1530; background: #fff; }
 h1, h2, h3, .page-title, .summary-main, .total-num, .place-head .ss-cell b, .dl { font-family: var(--display); }
 .place-title h2, .page-title { font-weight: 800; letter-spacing: -.01em; }
 
-/* Radar: scelta tra ultime 2 ore e previsione (mappa Windy inserita) */
-.radar-modes {
-  flex: none; display: flex; gap: 6px; padding: 8px 12px;
-  background: var(--bg-2); border-bottom: 1px solid var(--line);
-}
-.radar-modes button {
-  flex: 1; max-width: 220px; min-height: 40px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; font-weight: 600;
-}
-.radar-modes button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #0a1530; }
-.radar-modes button:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
-.radar [hidden] { display: none !important; }
-.forecast { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* Radar: mappa Windy con pulsanti per gli strati, spiegazione e legenda */
 .forecast-bar {
   flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 12px;
   background: var(--bg-2); border-bottom: 1px solid var(--line);
@@ -710,5 +635,39 @@ h1, h2, h3, .page-title, .summary-main, .total-num, .place-head .ss-cell b, .dl 
 .forecast-chips .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #0a1530; font-weight: 700; }
 .forecast-reset { flex: none; width: 40px; height: 40px; }
 .forecast-reset svg { width: 20px; height: 20px; }
+.forecast-info {
+  flex: none; padding: 8px 14px 10px; background: var(--bg-2); border-bottom: 1px solid var(--line);
+  font-size: 13px; color: var(--muted);
+}
+.forecast-info p { margin: 0 0 6px; color: var(--text); line-height: 1.35; max-width: 70ch; }
+.forecast-scale { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; padding: 0; list-style: none; align-items: center; }
+.forecast-scale li { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.forecast-scale b { color: var(--text); font-weight: 600; }
+.forecast-scale span { font-variant-numeric: tabular-nums; }
+.forecast-scale .unit { color: var(--muted); }
+.forecast-scale i { width: 6px; border-radius: 2px; background: var(--accent); }
+.forecast-scale i.lv1 { height: 6px; opacity: .45; }
+.forecast-scale i.lv2 { height: 9px; opacity: .65; }
+.forecast-scale i.lv3 { height: 12px; opacity: .85; }
+.forecast-scale i.lv4 { height: 15px; }
 .forecast-stage { position: relative; flex: 1; min-height: 0; background: #0e1626; }
 .forecast-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+
+/* Preferiti vuoti (prima apertura) e pagina per portare i posti su un altro dispositivo */
+.empty { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 48px 8px 24px; color: var(--muted); }
+.empty p { margin: 0; max-width: 34ch; }
+.empty .empty-title { font-family: var(--display); font-size: 22px; font-weight: 700; color: var(--text); }
+.empty .btn { margin-top: 6px; }
+.transfer-link { margin: 10px 0 0; font-size: 14px; }
+.transfer-link a { color: var(--muted); }
+.transfer { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px 14px; margin: 14px 0; }
+.transfer h2 { margin: 0 0 6px; font-size: 17px; }
+.transfer p { margin: 0 0 10px; }
+.transfer .small, [data-transfer-copied] { font-size: 13px; }
+.transfer-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.transfer textarea, [data-transfer-copied] textarea {
+  display: block; width: 100%; margin: 0 0 10px; padding: 10px; border-radius: 10px; resize: vertical;
+  border: 1px solid var(--line); background: var(--bg); color: var(--text); font: 13px/1.4 ui-monospace, monospace; word-break: break-all;
+}
+[data-transfer-copied]:empty { display: none; }
+[data-transfer-copied] { margin: 10px 0 0; }

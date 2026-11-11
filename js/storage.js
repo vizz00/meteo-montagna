@@ -2,7 +2,7 @@
 const KEY = 'mm.prefs.v1';
 
 const DEFAULTS = {
-  favorites: ['cervinia', 'champoluc', 'alagna'],
+  favorites: [], // alla prima apertura l'elenco è vuoto: i posti si aggiungono da Cerca
   band: 'meta',
   showAll: false,
   aspects: {}, // versanti scelti per posto: { [id]: ['N', 'NE'] }

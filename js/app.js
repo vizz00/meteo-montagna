@@ -11,6 +11,7 @@ import { loadAvalanche, romeDate } from './avalanche.js';
 import { avalPlaceBlock, avalPage } from './avalanche-view.js';
 import { evaluateWindows, statusLabel, SECTORS, RULES } from './window.js';
 import { renderSeason } from './season-view.js';
+import { exportLink, readCode, mergeImport, transferPage } from './transfer.js';
 
 const app = document.getElementById('app');
 const ptr = document.getElementById('ptr');
@@ -515,7 +516,8 @@ function renderOverview() {
   const favs = state.prefs.favorites.map(placeById).filter(Boolean);
   // I posti solo "visti" (provvisori) non entrano nella panoramica finché non sono preferiti.
   const others = PLACES.filter((p) => !isFav(p.id) && !p.temp);
-  const showAll = state.prefs.showAll || favs.length === 0;
+  const showAll = state.prefs.showAll;
+  const empty = favs.length === 0 && !showAll;
   let visible = showAll ? [...favs, ...others] : favs;
   const sort = state.prefs.sort;
   if (state.forecast && sort !== 'mio') {
@@ -535,6 +537,14 @@ function renderOverview() {
   } else {
     body = visible.map(forecastCard).join('');
   }
+  if (empty) {
+    body = `<div class="empty">
+      <p class="empty-title">Nessun posto, per ora</p>
+      <p>Aggiungi i posti dove vai a sciare: qui vedrai la neve prevista, il vento e la finestra buona di ognuno.</p>
+      <a class="btn" href="#/aggiungi">+ Aggiungi un posto</a>
+      <a class="btn ghost" href="#/trasferisci">Li ho già su un altro dispositivo</a>
+    </div>`;
+  }
 
   const old = state.forecast && (state.forecast.stale || Date.now() - state.forecast.fetchedAt > 90 * 60 * 1000);
   const status = old
@@ -545,14 +555,15 @@ function renderOverview() {
 
   app.innerHTML = `
     <h1 class="sr-only">Preferiti</h1>
-    ${state.reorder && favs.length > 1 ? reorderList(favs) : sortSwitch()}
-    ${status}
+    ${empty ? '' : state.reorder && favs.length > 1 ? reorderList(favs) : sortSwitch()}
+    ${empty ? '' : status}
     ${state.error && state.forecast ? `<div class="notice">${esc(state.error)}</div>` : ''}
     ${body}
     <div class="toolbar end">
-      <a class="btn ghost add-place" href="#/aggiungi">+ Aggiungi posto</a>
-      <label class="toggle"><input type="checkbox" data-showall ${showAll ? 'checked' : ''} ${favs.length ? '' : 'disabled'}> Anche i non preferiti</label>
+      ${empty ? '' : '<a class="btn ghost add-place" href="#/aggiungi">+ Aggiungi posto</a>'}
+      <label class="toggle"><input type="checkbox" data-showall ${showAll ? 'checked' : ''}> Anche i non preferiti</label>
     </div>
+    ${empty ? '' : '<p class="transfer-link"><a href="#/trasferisci">Porta i preferiti su un altro dispositivo</a></p>'}
     <details class="explain">
       <summary>Come leggere</summary>
       <p>Accanto al nome: neve delle ultime 24 ore e totali dei prossimi 1-5 e 6-10 giorni. Per ogni giorno: massima, cielo, cm di neve, vento e finestra buona. In alto scegli l'ordine dei posti; con le frecce riordini i preferiti.</p>
@@ -782,6 +793,45 @@ function renderAvalanche(params) {
   }
 }
 
+// Porta posti e preferiti su un altro dispositivo (js/transfer.js).
+function renderTransfer(params) {
+  app.innerHTML = transferPage({ prefs: state.prefs, code: params.get('d') || '', result: state.transferResult });
+}
+
+function importCode(text) {
+  const data = readCode(text);
+  if (!data) {
+    location.hash = `#/trasferisci?d=non-valido`;
+    return;
+  }
+  const res = mergeImport(data, state.prefs);
+  state.prefs = res.prefs;
+  savePrefs(state.prefs);
+  state.transferResult = res;
+  if (location.hash === '#/trasferisci') render();
+  else location.hash = '#/trasferisci';
+  refresh(false);
+}
+
+async function copyCode(btn) {
+  const link = exportLink(state.prefs);
+  const out = app.querySelector('[data-transfer-copied]');
+  try {
+    if (btn.matches('[data-transfer-share]')) {
+      await navigator.share({ title: 'Polvere: i miei posti', url: link });
+      return;
+    }
+    await navigator.clipboard.writeText(link);
+    out.textContent = 'Codice copiato. Ora incollalo sull\'altro dispositivo (per esempio mandandotelo con Note, AirDrop o un messaggio).';
+  } catch (err) {
+    if (err?.name === 'AbortError') return;
+    out.innerHTML = 'Non riesco a copiare da solo: seleziona e copia questo testo.<textarea rows="4" readonly></textarea>';
+    const ta = out.querySelector('textarea');
+    ta.value = link;
+    ta.select();
+  }
+}
+
 function renderNotFound() {
   app.innerHTML = `<h1 class="page-title">Pagina non trovata</h1><p><a href="#/">Torna alla panoramica</a></p>`;
 }
@@ -837,7 +887,7 @@ function render() {
 function renderRoute() {
   const r = route();
   document.querySelectorAll('.tabbar a').forEach((a) => {
-    const active = a.dataset.tab === (r.tab === 'posto' || r.tab === 'aggiungi' ? 'panoramica' : r.tab);
+    const active = a.dataset.tab === (r.tab === 'posto' || r.tab === 'aggiungi' || r.tab === 'trasferisci' ? 'panoramica' : r.tab);
     a.classList.toggle('active', active);
     if (active) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
@@ -846,6 +896,7 @@ function renderRoute() {
   // Il radar occupa tutto lo schermo; quando si cambia scheda la mappa viene chiusa.
   document.body.classList.toggle('radar-mode', r.tab === 'radar');
   if (r.tab !== 'radar') unmountRadar();
+  if (r.tab !== 'trasferisci') state.transferResult = null;
 
   switch (r.tab) {
     case 'panoramica':
@@ -858,6 +909,8 @@ function renderRoute() {
       return mountRadar(app, { places: PLACES, favorites: state.prefs.favorites });
     case 'valanghe':
       return renderAvalanche(r.params);
+    case 'trasferisci':
+      return renderTransfer(r.params);
     case 'stagione':
       return renderSeason(app, r.params, { places: PLACES, prefs: state.prefs, isFav, rerender: render });
     default:
@@ -912,6 +965,9 @@ app.addEventListener('click', (e) => {
   const asp = e.target.closest('[data-aspect]');
   if (asp) return toggleAspect(asp.dataset.placeAspect, asp.dataset.aspect);
   if (e.target.closest('[data-retry]')) return refresh(true);
+  const copy = e.target.closest('[data-transfer-copy], [data-transfer-share]');
+  if (copy) return copyCode(copy);
+  if (e.target.closest('[data-transfer-import]')) return importCode(app.querySelector('[data-transfer-input]').value);
 });
 app.addEventListener('submit', (e) => {
   if (!e.target.matches('[data-aval-archive]')) return;
