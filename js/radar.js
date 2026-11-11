@@ -20,14 +20,14 @@ const LAYERS = [
     label: 'Neve fresca',
     overlay: 'snowAccu',
     level: 'surface',
-    text: 'Neve nuova che si accumula nel periodo scelto in basso sulla mappa (per esempio i prossimi 3 giorni).',
+    text: 'Neve nuova che si accumula nel periodo scelto in basso sulla mappa.',
   },
   {
     id: 'wind',
     label: 'Vento 3000 m',
     overlay: 'wind',
     level: '700h',
-    text: 'Vento a circa 3000 m (700 hPa), quello delle creste. Sopra i 40 km/h sposta molta neve e carica i versanti sottovento.',
+    text: 'Vento a circa 3000 m (700 hPa), quello delle creste.',
   },
   {
     id: 'gust',
