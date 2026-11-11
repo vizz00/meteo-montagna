@@ -479,7 +479,8 @@ function snowCard(place, { detail = false } = {}) {
         <span class="sc-wd ${isWeekend(d.date) ? 'we' : ''}">${DAY_LETTER[dayDate(d.date).getDay()]}</span>
         <span class="sc-dn ${isWeekend(d.date) ? 'we' : ''}">${dayNum(d.date)}</span>
         ${detail ? dayIcon(d) : ''}
-        ${detail ? `<span class="pw ${p && p.level !== 'no' ? `pw-${p.level}` : 'pw-vuota'}"${p && p.level !== 'no' ? ` title="Polvere: ${p.label}"` : ''}></span>` : ''}
+        ${detail ? `<span class="fc-w" title="${d.wind ? `Vento massimo in quota: ${Math.round(d.wind.speed)} km/h da ${compass(d.wind.dir)}` : ''}">${d.wind ? `${windArrow(d.wind.dir)}${Math.round(d.wind.speed)}` : '–'}</span>` : ''}
+        ${detail ? `<span class="pw-r${p?.carried ? ' pw-carry' : ''}"${p?.ratio ? ` title="Rapporto neve/acqua ${p.ratio}:1${p.carried ? ' (neve del giorno prima)' : ''}"` : ''}>${p?.ratio && (cm >= 1 || p.carried) ? `${p.ratio}:1` : ''}</span>` : ''}
       </a>`;
     })
     .join('');
@@ -496,9 +497,10 @@ function snowCard(place, { detail = false } = {}) {
           <span><span class="sc-k">6-10 giorni</span><b title="${t.d6_10 ? `${rangeText(t.d6_10)} cm tra i modelli` : ''}">${cmText(t.d6_10?.median)} cm</b></span>
         </div>
         <div class="sc-days">${cols}</div>
-        ${detail ? `<p class="pw-legend"><span class="pw-k">Polvere</span>${infoBtn('powder')}<span class="pw pw-ottima"></span>ottima <span class="pw pw-buona"></span>buona <span class="pw pw-discreta"></span>discreta</p>${
+        ${detail ? `<p class="pw-legend"><span class="pw-k">Polvere · SLR</span>${infoBtn('powder')}</p>${
           state.info.powder
-            ? `<p class="info-text">Quanto sarà bella la neve fresca. Conta la neve caduta nelle ultime 48 ore (oggi pesa di più di ieri). Fa freddo: la neve è leggera, con più cm per ogni mm d'acqua (è il rapporto neve/acqua, SLR). Vale meno se c'è vento forte, sole e caldo, zero termico alto o pioggia.</p>`
+            ? `<p class="info-text">Polvere: il rapporto neve/acqua (SLR) dice quanti cm di neve fa 1 mm d'acqua. 10:1 vuol dire 10 cm di neve per 1 mm. Più fa freddo mentre nevica, più il rapporto sale. Lo stimiamo dalla temperatura alla quota. In grigio, il giorno dopo la nevicata: vale ancora se vento, caldo e pioggia non hanno rovinato la neve.</p>
+            <div class="slr-scale" aria-label="Scala del rapporto neve/acqua"><span class="slr-heavy"><b>&lt;9</b> pesante</span><span class="slr-mid"><b>9-12</b> media</span><span class="slr-light"><b>&gt;12</b> leggera</span></div>`
             : ''
         }` : ''}
       </div>
