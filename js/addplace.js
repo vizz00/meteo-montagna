@@ -1,6 +1,7 @@
 // Pagina "Aggiungi un posto": ricerca per nome (Open-Meteo geocoding)
 // oppure tocco sulla mappa (Leaflet), quote proposte in automatico e modificabili.
 import { PLACES } from './places.js';
+import { PRESETS } from './presets.js';
 import { savePlace, deletePlace, getCustomPlace } from './myplaces.js';
 import { loadLeaflet } from './leaflet-loader.js';
 import {
@@ -133,9 +134,18 @@ function showResults(list, message) {
 
 // ---------- scelta del punto ----------
 
-async function pick({ lat, lon, name, region, regionName: rName, baseElevation, id, single }) {
+async function pick({ lat, lon, name, region, regionName: rName, baseElevation, id, single, elevations }) {
   const my = ++token;
   sel = { id, name: name || '', lat, lon, region, regionName: rName, elevations: null, single: Boolean(single) };
+  if (elevations) {
+    // Località predefinita: quote già note, niente calcolo.
+    sel.elevations = { ...elevations };
+    sel.regionName = rName || regionName(region);
+    placeMarker(lat, lon);
+    showForm(false);
+    document.getElementById('place-pick')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return;
+  }
   placeMarker(lat, lon);
   showForm(true);
   document.getElementById('place-pick')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -233,6 +243,20 @@ async function setupMap(center) {
       L.circleMarker([p.lat, p.lon], { radius: 6, color: '#ffffff', weight: 2, fillColor: '#ffd166', fillOpacity: 0.9 })
         .bindTooltip(p.name)
         .addTo(map);
+    }
+    // Località predefinite (non ancora nei tuoi posti): pallino azzurro, un tocco le sceglie.
+    if (!sel?.id) {
+      const near = (a, b) => Math.abs(a.lat - b.lat) < 0.03 && Math.abs(a.lon - b.lon) < 0.03;
+      for (const pr of PRESETS) {
+        if (PLACES.some((p) => near(p, pr))) continue;
+        const dot = L.circleMarker([pr.lat, pr.lon], { radius: 7, color: '#ffffff', weight: 2, fillColor: '#8fe3ff', fillOpacity: 0.85 })
+          .bindTooltip(pr.name)
+          .addTo(map);
+        dot.on('click', (ev) => {
+          L.DomEvent.stopPropagation(ev);
+          pick({ ...pr });
+        });
+      }
     }
     if (sel) placeMarker(sel.lat, sel.lon);
     map.on('click', (e) =>
