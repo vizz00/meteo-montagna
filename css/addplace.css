@@ -88,3 +88,9 @@
 .info-text[hidden] { display: none; }
 .chart-bar .info-btn { min-width: 36px; min-height: 36px; font-size: 18px; }
 .forecast .info-text { flex: none; margin: 0; padding: 8px 14px 10px; background: var(--bg-2); border-bottom: 1px solid var(--line); color: var(--text); max-width: none; }
+
+.menu { position: relative; }
+.menu-list { position: absolute; right: 0; top: 100%; z-index: 20; min-width: 150px; display: grid; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.4); overflow: hidden; }
+.menu-list a, .menu-list button { display: flex; align-items: center; min-height: 44px; padding: 0 16px; border: 0; background: none; color: var(--text); font: inherit; text-decoration: none; text-align: left; cursor: pointer; }
+.menu-list a:hover, .menu-list button:hover { background: var(--bg-2); }
+.menu-list .menu-danger { color: var(--warn); }
