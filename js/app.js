@@ -34,6 +34,7 @@ const state = {
   aval: null, // bollettini valanghe di oggi/domani
   avalArchive: null, // { day, data } quando si guarda un giorno passato
   info: { chart: false, powder: false }, // spiegazioni aperte con il tasto ⓘ
+  menu: false, // menù ⋯ della pagina del posto
   reorder: false, // riordino manuale dei preferiti aperto
 };
 
@@ -825,7 +826,13 @@ function renderDetail(id, params) {
     <div class="detail-head">
       <h1 class="page-title">${esc(place.name)}</h1>
       <div class="head-actions">${
-        `${place.custom ? `<a class="btn ghost small" href="#/aggiungi?modifica=${place.id}">Modifica</a>` : ''}<button type="button" class="btn ghost small" data-remove-place="${place.id}">Elimina</button>`
+        `<div class="menu"><button type="button" class="info-btn" data-menu aria-haspopup="true" aria-expanded="${state.menu}" aria-label="Altre azioni" title="Altre azioni">⋯</button>${
+          state.menu
+            ? `<div class="menu-list" role="menu">${
+                place.custom ? `<a role="menuitem" href="#/aggiungi?modifica=${place.id}">Modifica</a>` : ''
+              }<button type="button" role="menuitem" class="menu-danger" data-remove-place="${place.id}">Elimina</button></div>`
+            : ''
+        }</div>`
       }${favButton(place)}</div>
     </div>
     ${place.single ? `<p class="place-sub">Quota ${place.elevations.valle} m</p>` : ''}
@@ -1036,6 +1043,14 @@ app.addEventListener('click', (e) => {
   if (chartBtn) return setPrefs({ chart: chartBtn.dataset.chart });
   const bandBtn = e.target.closest('[data-band]');
   if (bandBtn) return setPrefs({ band: bandBtn.dataset.band });
+  if (state.menu && !e.target.closest('.menu')) {
+    state.menu = false;
+    render();
+  }
+  if (e.target.closest('[data-menu]')) {
+    state.menu = !state.menu;
+    return render();
+  }
   const inf = e.target.closest('[data-info]');
   if (inf) {
     state.info = { ...state.info, [inf.dataset.info]: !state.info[inf.dataset.info] };
@@ -1069,6 +1084,7 @@ app.addEventListener('change', (e) => {
 const BACK_LABEL = { panoramica: 'Località', valanghe: 'Valanghe', radar: 'Radar', stagione: 'Stagione' };
 let prevHash = location.hash;
 window.addEventListener('hashchange', () => {
+  state.menu = false;
   const from = route(prevHash);
   if (route().tab === 'posto' && from.tab !== 'posto' && BACK_LABEL[from.tab]) {
     state.backHref = prevHash || '#/';
