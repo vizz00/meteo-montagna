@@ -673,3 +673,4 @@ h1, h2, h3, .page-title, .summary-main, .total-num, .place-head .ss-cell b, .dl 
 .slr-heavy { background: #2a3a6e; color: #e8eefc; }
 .slr-mid { background: #8fa6d9; color: #0a1530; }
 .slr-light { background: #eaf4ff; color: #0a1530; }
+.pw-r.pw-light { background: #eaf4ff; color: #0a1530; font-weight: 700; border-radius: 6px; padding: 0 4px; }

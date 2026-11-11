@@ -480,7 +480,7 @@ function snowCard(place, { detail = false } = {}) {
         <span class="sc-dn ${isWeekend(d.date) ? 'we' : ''}">${dayNum(d.date)}</span>
         ${detail ? dayIcon(d) : ''}
         ${detail ? `<span class="fc-w" title="${d.wind ? `Vento massimo in quota: ${Math.round(d.wind.speed)} km/h da ${compass(d.wind.dir)}` : ''}">${d.wind ? `${windArrow(d.wind.dir)}${Math.round(d.wind.speed)}` : '–'}</span>` : ''}
-        ${detail ? `<span class="pw-r${p?.carried ? ' pw-carry' : ''}"${p?.ratio ? ` title="Rapporto neve/acqua ${p.ratio}:1${p.carried ? ' (neve del giorno prima)' : ''}"` : ''}>${p?.ratio && (cm >= 1 || p.carried) ? `${p.ratio}:1` : ''}</span>` : ''}
+        ${detail ? `<span class="pw-r${p?.carried ? ' pw-carry' : ''}${p?.ratio > 12 ? ' pw-light' : ''}"${p?.ratio ? ` title="Rapporto neve/acqua ${p.ratio}:1${p.carried ? ' (neve del giorno prima)' : ''}"` : ''}>${p?.ratio && (cm >= 1 || p.carried) ? `${p.ratio}:1` : ''}</span>` : ''}
       </a>`;
     })
     .join('');
