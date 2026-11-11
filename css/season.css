@@ -5,13 +5,13 @@
   border-radius: 999px; border: 1px solid var(--line); background: var(--bg-2);
   color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px;
 }
-.chip[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: #0b1220; }
+.chip[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: #0a1530; }
 .segmented a {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 72px; min-height: 40px; padding: 0 12px; border-radius: 9px;
   color: var(--muted); font-weight: 600; text-decoration: none;
 }
-.segmented a[aria-pressed="true"] { background: var(--accent); color: #0b1220; }
+.segmented a[aria-pressed="true"] { background: var(--accent); color: #0a1530; }
 .status .stale { color: var(--warn); }
 
 .season-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin: 0 0 14px; }

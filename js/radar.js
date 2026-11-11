@@ -208,7 +208,7 @@ function initMap(L) {
       radius: fav ? 7 : 5,
       color: '#ffffff',
       weight: 2,
-      fillColor: fav ? '#ffd166' : '#0b1220',
+      fillColor: fav ? '#ffd166' : '#0a1530',
       fillOpacity: 1,
       pane: 'markerPane',
     })

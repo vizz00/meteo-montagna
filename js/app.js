@@ -329,13 +329,15 @@ function snowTotals(s) {
 
 function sortSwitch() {
   const opts = [
-    ['mio', 'I miei'],
-    ['d1_5', '1-5 gg'],
-    ['d6_10', '6-10 gg'],
+    ['mio', 'Tuo ordine'],
+    ['last24', 'Neve ultime 24 ore'],
+    ['d1_5', 'Neve prossimi 1-5 giorni'],
+    ['d6_10', 'Neve prossimi 6-10 giorni'],
   ];
-  const snowIco = `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICON.snow}</svg>`;
-  return `<div class="chips sortbar" role="radiogroup" aria-label="Ordina">
-    ${opts.map(([id, l]) => `<button type="button" class="chip" role="radio" aria-checked="${state.prefs.sort === id}" data-sort="${id}">${id === 'mio' ? '' : snowIco}${l}</button>`).join('')}
+  return `<div class="chips sortbar">
+    <select class="chip sort-sel" data-sortsel aria-label="Ordina i posti">
+      ${opts.map(([id, l]) => `<option value="${id}" ${state.prefs.sort === id ? 'selected' : ''}>${l}</option>`).join('')}
+    </select>
     <button type="button" class="chip reorder-btn" data-reorder aria-label="Riordina i preferiti" title="Riordina i preferiti">
       <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v16M8 4 4.5 7.5M8 4l3.5 3.5M16 20V4M16 20l-3.5-3.5M16 20l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
@@ -369,16 +371,16 @@ function moveFav(id, dir) {
   setPrefs({ favorites: favs, sort: 'mio' });
 }
 
-function placeHead(place, band = overviewBand(place)) {
+function placeHead(place, band = overviewBand(place), side = null) {
   const region = REGIONS[place.region];
   const fav = isFav(place.id);
   return `<header class="place-head">
     <button type="button" class="star" data-fav="${place.id}" aria-pressed="${fav}" aria-label="${fav ? 'Togli dai preferiti' : 'Aggiungi ai preferiti'}">${fav ? '★' : '☆'}</button>
     <a class="place-title" href="#/posto/${place.id}">
       <h2>${esc(place.name)}</h2>
-      <p class="place-sub">${place.elevations[band]} m · ${esc(region?.name || '')}</p>
+      <p class="place-sub">${place.elevations[band]} m${side ? '' : ` · ${esc(region?.name || '')}`}</p>
     </a>
-    <a class="go" href="#/posto/${place.id}" aria-label="Apri ${esc(place.name)}">›</a>
+    ${side ?? `<a class="go" href="#/posto/${place.id}" aria-label="Apri ${esc(place.name)}">›</a>`}
   </header>`;
 }
 
@@ -409,6 +411,7 @@ function snowCard(place, { detail = false } = {}) {
         <span class="sc-bar" style="height:${h}px;background:${cm >= 0.5 ? snowColor(cm) : 'var(--line)'}"></span>
         <span class="sc-wd ${isWeekend(d.date) ? 'we' : ''}">${DAY_LETTER[dayDate(d.date).getDay()]}</span>
         <span class="sc-dn ${isWeekend(d.date) ? 'we' : ''}">${dayNum(d.date)}</span>
+        ${detail ? dayIcon(d) : ''}
         ${detail ? `<span class="pw ${p && p.level !== 'no' ? `pw-${p.level}` : 'pw-vuota'}"${p && p.level !== 'no' ? ` title="Polvere: ${p.label}"` : ''}></span>` : ''}
       </a>`;
     })
@@ -475,36 +478,25 @@ function snowStrip(s) {
     const on = (v ?? 0) >= 0.5;
     return `<span class="ss-cell${on ? ' on' : ''}"${range ? ` title="${rangeText(range)} cm tra i modelli"` : ''}><span class="ss-k">${k}</span><b>${cmText(v)}<small>cm</small></b></span>`;
   };
-  return `<div class="ss">
-    <svg class="ss-ico" viewBox="0 0 24 24" role="img" aria-label="Neve">${ICON.snow}</svg>
+  return `<div class="ss" role="group" aria-label="Neve">
     ${cell('24 h', s.last24)}
     ${cell('1-5 gg', t.d1_5?.median, t.d1_5)}
     ${cell('6-10 gg', t.d6_10?.median, t.d6_10)}
   </div>`;
 }
 
-// Scheda unica dei Preferiti: adesso (temperatura, vento, raffiche) e 7 giorni con massima/minima.
+// Scheda unica dei Preferiti: neve accanto al nome (24 h, 1-5, 6-10 giorni) e 7 giorni con cielo, neve, vento e finestra.
 function forecastCard(place) {
   const band = overviewBand(place);
   const s = state.forecast?.byPlace[place.id]?.[band];
   if (!s) return `<article class="place">${placeHead(place)}<p class="muted pad">Dati non disponibili</p></article>`;
-  const n = s.now;
   const wins = windowsFor(place, band) || [];
-  const nowDay = { snow: { median: n?.snowing ? 1 : 0 }, rain: n && !n.snowing && n.precip > 0.1 ? 1 : 0, cloud: n?.cloud, wind: { speed: n?.wind } };
-  const now = n
-    ? `<div class="fc-now">
-        <div class="fc-now-l">${dayIcon(nowDay)}<span class="fc-temp">${Math.round(n.temp)}<small>°C</small></span></div>
-        <div class="fc-now-r"><span class="fc-wind-now">${icon('wind', 'Vento in quota')} <b>${Math.round(n.wind ?? 0)}</b> km/h ${compass(n.windDir)}</span>
-        ${n.gust != null ? `<span class="muted">raffiche ${Math.round(n.gust)} km/h</span>` : ''}</div>
-      </div>`
-    : '';
   const cols = s.days
     .slice(0, 7)
     .map(
       (d, i) => `<a class="fc-day" href="#/posto/${place.id}?giorno=${d.date}">
-        <span class="fc-wd ${isWeekend(d.date) ? 'we' : ''}">${i === 0 ? 'Oggi' : `${weekday(d.date)} ${dayNum(d.date)}`}</span>
-        <span class="fc-max">${d.tMax != null ? Math.round(d.tMax) : '–'}°</span>
-        <span class="fc-min">${d.tMin != null ? Math.round(d.tMin) : '–'}°</span>
+        <span class="fc-wd ${isWeekend(d.date) ? 'we' : ''}${i === 0 ? ' today' : ''}" title="${esc(longDay(d.date))}">${weekday(d.date)} ${dayNum(d.date)}</span>
+        <span class="fc-max" title="Massima ${d.tMax != null ? Math.round(d.tMax) : '–'}°, minima ${d.tMin != null ? Math.round(d.tMin) : '–'}°">${d.tMax != null ? Math.round(d.tMax) : '–'}°</span>
         ${dayIcon(d)}
         ${snowDay(d)}
         <span class="fc-w" title="${d.wind ? `Vento massimo in quota: ${Math.round(d.wind.speed)} km/h da ${compass(d.wind.dir)}` : ''}">${d.wind ? `${windArrow(d.wind.dir)}${Math.round(d.wind.speed)}` : '–'}</span>
@@ -513,9 +505,7 @@ function forecastCard(place) {
     )
     .join('');
   return `<article class="place" data-place="${place.id}">
-    ${placeHead(place)}
-    ${now}
-    ${snowStrip(s)}
+    ${placeHead(place, band, snowStrip(s))}
     <div class="fc-days">${cols}</div>
   </article>`;
 }
@@ -531,7 +521,8 @@ function renderOverview() {
   if (state.forecast && sort !== 'mio') {
     const val = (p) => {
       const s = state.forecast.byPlace[p.id]?.[overviewBand(p)];
-      return s ? snowTotals(s)[sort]?.median ?? -1 : -1;
+      if (!s) return -1;
+      return sort === 'last24' ? s.last24 ?? -1 : snowTotals(s)[sort]?.median ?? -1;
     };
     visible = [...visible].sort((a, b) => val(b) - val(a));
   }
@@ -545,9 +536,10 @@ function renderOverview() {
     body = visible.map(forecastCard).join('');
   }
 
-  const status = state.forecast
+  const old = state.forecast && (state.forecast.stale || Date.now() - state.forecast.fetchedAt > 90 * 60 * 1000);
+  const status = old
     ? `<p class="status ${state.forecast.stale ? 'stale' : ''}">${
-        state.forecast.stale ? 'Senza rete: dati di ' : 'Aggiornato '
+        state.forecast.stale ? 'Senza rete: dati di ' : 'Dati di '
       }${timeAgo(state.forecast.fetchedAt)} · Open-Meteo</p>`
     : '';
 
@@ -563,7 +555,7 @@ function renderOverview() {
     </div>
     <details class="explain">
       <summary>Come leggere</summary>
-      <p>Riga neve: ultime 24 ore e totali dei prossimi 1-5 e 6-10 giorni; sotto ogni giorno i cm previsti. Con le frecce in alto riordini i preferiti, oppure ordini per neve prevista.</p>
+      <p>Accanto al nome: neve delle ultime 24 ore e totali dei prossimi 1-5 e 6-10 giorni. Per ogni giorno: massima, cielo, cm di neve, vento e finestra buona. In alto scegli l'ordine dei posti; con le frecce riordini i preferiti.</p>
       <p>Neve stimata: mediana tra i modelli (${MODELS.map((m) => m.label).join(', ')}). Tieni il dito su un numero per l'intervallo tra i modelli. Dal 6° giorno restano solo ECMWF e GFS.</p>
       <p>Finestra buona: <span class="win win-aperta legend"></span> sì · <span class="win win-aperta win-nobul legend"></span> sì, ma senza bollettino · <span class="win win-avvisi legend"></span> avvisi · <span class="win win-chiusa legend"></span> chiusa · <span class="win win-meteo legend"></span> meteo non buono. Un avviso conta più del meteo.</p>
       <p>Quota di metà per tutti i posti; nella pagina del posto si sceglie valle, metà o cima. Vento: in quota (circa 3000 m), km/h e provenienza. Raffiche: vicino al suolo.</p>
@@ -911,8 +903,6 @@ app.addEventListener('click', (e) => {
   }
   const mv = e.target.closest('[data-move]');
   if (mv) return moveFav(mv.dataset.move, Number(mv.dataset.dir));
-  const sortBtn = e.target.closest('[data-sort]');
-  if (sortBtn) return setPrefs({ sort: sortBtn.dataset.sort });
   const chartBtn = e.target.closest('[data-chart]');
   if (chartBtn) return setPrefs({ chart: chartBtn.dataset.chart });
   const bandBtn = e.target.closest('[data-band]');
@@ -931,6 +921,7 @@ app.addEventListener('submit', (e) => {
 });
 app.addEventListener('change', (e) => {
   if (e.target.matches('[data-showall]')) setPrefs({ showAll: e.target.checked });
+  if (e.target.matches('[data-sortsel]')) setPrefs({ sort: e.target.value });
   if (e.target.matches('[data-chart-model]')) setPrefs({ chartModel: e.target.value });
 });
 

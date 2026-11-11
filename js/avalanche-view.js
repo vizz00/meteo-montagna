@@ -140,7 +140,7 @@ export function avalPlaceBlock(place, aval, { archive = false, heading = null } 
   return `<section class="aval-place" id="valanghe-${esc(place.id)}">
     <header class="aval-head">
       <h2>${esc(heading || place.name)}</h2>
-      <p class="place-sub">${zone ? `Micro-zona ${esc(zone.name || zone.id)}${zone.name ? ` (${esc(zone.id)})` : ''} · ` : ''}${esc(region.name)}</p>
+      ${heading ? '' : `<p class="place-sub">${zone ? `Micro-zona ${esc(zone.name || zone.id)}${zone.name ? ` (${esc(zone.id)})` : ''} · ` : ''}${esc(region.name)}</p>`}
     </header>
     ${body}
     <p class="links-row"><a class="btn ghost" href="${esc(official)}" target="_blank" rel="noopener">Bollettino ${esc(source)} ↗</a></p>

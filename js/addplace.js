@@ -175,7 +175,7 @@ function placeMarker(lat, lon) {
       radius: 10,
       color: '#ffffff',
       weight: 3,
-      fillColor: '#7aa2ff',
+      fillColor: '#8fe3ff',
       fillOpacity: 1,
     }).addTo(map);
   map.setView([lat, lon], Math.max(map.getZoom(), 12));
@@ -278,7 +278,7 @@ export function renderAddPage(app, params, { onSaved, onDeleted }) {
     : null;
 
   app.innerHTML = `<div id="add-page">
-    <p class="back"><a href="${editing ? `#/posto/${esc(editing.id)}` : '#/'}">← ${editing ? esc(editing.name) : 'Panoramica'}</a></p>
+    <p class="back"><a href="${editing ? `#/posto/${esc(editing.id)}` : '#/'}">← ${editing ? esc(editing.name) : 'Preferiti'}</a></p>
     <h1 class="page-title">${editing ? 'Modifica posto' : 'Aggiungi un posto'}</h1>
     ${
       editing
