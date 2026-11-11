@@ -499,7 +499,7 @@ function snowCard(place, { detail = false } = {}) {
         ${detail ? `<p class="pw-legend"><span class="pw-k">Polvere · SLR</span>${infoBtn('powder')}</p>${
           state.info.powder
             ? `<p class="info-text">Polvere: il rapporto neve/acqua (SLR) dice quanti cm di neve fa 1 mm d'acqua. 10:1 vuol dire 10 cm di neve per 1 mm. Più fa freddo mentre nevica, più il rapporto sale. Lo stimiamo dalla temperatura alla quota. In grigio, il giorno dopo la nevicata: vale ancora se vento, caldo e pioggia non hanno rovinato la neve.</p>
-            <div class="slr-scale" aria-label="Scala del rapporto neve/acqua"><span class="slr-heavy"><b>sotto 9:1</b>pesante</span><span class="slr-mid"><b>9 – 12:1</b>media</span><span class="slr-light"><b>sopra 12:1</b>leggera</span></div>`
+            <div class="slr-scale" aria-label="Scala del rapporto neve/acqua"><span class="slr-heavy"><b>&lt;9</b> pesante</span><span class="slr-mid"><b>9-12</b> media</span><span class="slr-light"><b>&gt;12</b> leggera</span></div>`
             : ''
         }` : ''}
       </div>
