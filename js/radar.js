@@ -92,11 +92,10 @@ function template() {
   return `<section class="radar forecast" aria-label="Previsione e radar">
     <div class="forecast-bar">
       <div class="forecast-chips">${chips}</div>
+      <button type="button" class="info-btn" data-forecast-help aria-pressed="false" aria-label="Mostra la spiegazione" title="Spiegazione">ⓘ</button>
+      <button type="button" class="info-btn" data-forecast-reset aria-label="Chiudi previsione del punto" title="Chiudi previsione del punto">✕</button>
     </div>
-    <div class="forecast-info">
-      <p data-forecast-info aria-live="polite"></p>
-      <button type="button" class="btn ghost small" data-forecast-reset>Chiudi previsione del punto</button>
-    </div>
+    <p class="info-text" data-forecast-info aria-live="polite" hidden></p>
     <div class="forecast-stage" data-forecast-stage></div>
   </section>`;
 }
@@ -121,6 +120,11 @@ export function mountRadar(container, { places }) {
   root.querySelectorAll('[data-forecast-layer]').forEach((b) =>
     b.addEventListener('click', () => setLayer(b.dataset.forecastLayer))
   );
+  root.querySelector('[data-forecast-help]').addEventListener('click', (e) => {
+    const p = root.querySelector('[data-forecast-info]');
+    p.hidden = !p.hidden;
+    e.currentTarget.setAttribute('aria-pressed', String(!p.hidden));
+  });
   root.querySelector('[data-forecast-reset]').addEventListener('click', () => showWindy());
   showWindy();
 }

@@ -33,6 +33,7 @@ const state = {
   loading: false,
   aval: null, // bollettini valanghe di oggi/domani
   avalArchive: null, // { day, data } quando si guarda un giorno passato
+  info: { chart: false, powder: false }, // spiegazioni aperte con il tasto ⓘ
   reorder: false, // riordino manuale dei preferiti aperto
 };
 
@@ -431,6 +432,11 @@ function moveFav(id, dir) {
   setPrefs({ favorites: favs, sort: 'mio' });
 }
 
+function infoBtn(key) {
+  const on = state.info[key];
+  return `<button type="button" class="info-btn" data-info="${key}" aria-pressed="${on}" aria-label="${on ? 'Nascondi la spiegazione' : 'Mostra la spiegazione'}" title="Spiegazione">ⓘ</button>`;
+}
+
 function placeHead(place, band = overviewBand(place), side = null) {
   const region = REGIONS[place.region];
   const fav = isFav(place.id);
@@ -490,7 +496,11 @@ function snowCard(place, { detail = false } = {}) {
           <span><span class="sc-k">6-10 giorni</span><b title="${t.d6_10 ? `${rangeText(t.d6_10)} cm tra i modelli` : ''}">${cmText(t.d6_10?.median)} cm</b></span>
         </div>
         <div class="sc-days">${cols}</div>
-        ${detail ? `<p class="pw-legend"><span class="pw-k">Polvere</span><span class="pw pw-ottima"></span>ottima <span class="pw pw-buona"></span>buona <span class="pw pw-discreta"></span>discreta</p>` : ''}
+        ${detail ? `<p class="pw-legend"><span class="pw-k">Polvere</span>${infoBtn('powder')}<span class="pw pw-ottima"></span>ottima <span class="pw pw-buona"></span>buona <span class="pw pw-discreta"></span>discreta</p>${
+          state.info.powder
+            ? `<p class="info-text">Quanto sarà bella la neve fresca. Conta la neve caduta nelle ultime 48 ore (oggi pesa di più di ieri). Fa freddo: la neve è leggera, con più cm per ogni mm d'acqua (è il rapporto neve/acqua, SLR). Vale meno se c'è vento forte, sole e caldo, zero termico alto o pioggia.</p>`
+            : ''
+        }` : ''}
       </div>
     </div>
   </article>`;
@@ -780,12 +790,8 @@ function chartBlock(place, band) {
     </select></label>`;
   return `<section class="charts">
     <div class="chips scroll" role="tablist" aria-label="Grafico" data-keep-scroll="chart-tabs">${tabs}</div>
-    <p class="chart-help">${esc(cur.help)}</p>${
-      cur.id === 'snowTotal'
-        ? `<p class="chart-help"><b>SLR</b> (rapporto neve/acqua): quanti cm di neve vengono da 1 mm di acqua. Vicino a 0 °C è circa 10:1, neve pesante e bagnata; sotto −8 °C arriva a 15:1, neve leggera e polverosa. Qui lo usiamo per stimare i cm.</p>`
-        : ''
-    }
-    <div class="chart-bar">${pick}<span class="chart-legend"><span class="lg-med${hl ? ' lg-hl' : ''}"></span>${
+    ${state.info.chart ? `<p class="chart-help">${esc(cur.help)}</p>` : ''}
+    <div class="chart-bar">${infoBtn('chart')}${pick}<span class="chart-legend"><span class="lg-med${hl ? ' lg-hl' : ''}"></span>${
       hl ? esc(MODELS.find((m) => m.id === hl).label) : 'mediana'
     } · <span class="lg-model"></span> singoli modelli</span></div>
     ${scrollCharts(chart, precipStrip(series, { highlight: hl }))}
@@ -1030,6 +1036,11 @@ app.addEventListener('click', (e) => {
   if (chartBtn) return setPrefs({ chart: chartBtn.dataset.chart });
   const bandBtn = e.target.closest('[data-band]');
   if (bandBtn) return setPrefs({ band: bandBtn.dataset.band });
+  const inf = e.target.closest('[data-info]');
+  if (inf) {
+    state.info = { ...state.info, [inf.dataset.info]: !state.info[inf.dataset.info] };
+    return render();
+  }
   const drop = e.target.closest('[data-drop]');
   if (drop) return dropPlace(drop.dataset.drop);
   const fav = e.target.closest('[data-fav]');
