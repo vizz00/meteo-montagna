@@ -16,8 +16,18 @@ import { exportLink, readCode, mergeImport, transferPage } from './transfer.js';
 const app = document.getElementById('app');
 const ptr = document.getElementById('ptr');
 
+// Prima c'erano solo i preferiti (più un posto "visto" provvisorio): l'elenco dei posti parte da lì.
+function withPlaces(prefs) {
+  for (const p of PLACES.filter((q) => q.temp)) keepPlace(p.id);
+  if (Array.isArray(prefs.places)) return prefs;
+  const custom = PLACES.filter((p) => p.custom).map((p) => p.id);
+  const next = { ...prefs, places: [...new Set([...prefs.favorites, ...custom])] };
+  savePrefs(next);
+  return next;
+}
+
 const state = {
-  prefs: loadPrefs(),
+  prefs: withPlaces(loadPrefs()),
   forecast: null,
   error: null,
   loading: false,
@@ -49,6 +59,13 @@ function timeAgo(ts) {
 
 const placeById = (id) => PLACES.find((p) => p.id === id);
 const isFav = (id) => state.prefs.favorites.includes(id);
+// I miei posti: tutti quelli cercati o aggiunti (state.prefs.places); quelli con la stella stanno in alto.
+const inList = (id) => state.prefs.places.includes(id);
+const myPlaces = () => {
+  const favs = state.prefs.favorites.map(placeById).filter(Boolean);
+  const others = state.prefs.places.filter((id) => !isFav(id)).map(placeById).filter(Boolean);
+  return [...favs, ...others];
+};
 
 function setPrefs(patch) {
   state.prefs = { ...state.prefs, ...patch };
@@ -57,9 +74,20 @@ function setPrefs(patch) {
 }
 
 function toggleFav(id) {
-  if (!isFav(id)) keepPlace(id);
   const favs = isFav(id) ? state.prefs.favorites.filter((f) => f !== id) : [...state.prefs.favorites, id];
-  setPrefs({ favorites: favs });
+  setPrefs({ favorites: favs, places: inList(id) ? state.prefs.places : [...state.prefs.places, id] });
+}
+
+// Toglie un posto dall'elenco (quelli aggiunti dall'utente si eliminano dalla pagina Modifica).
+function removePlace(id) {
+  state.prefs = {
+    ...state.prefs,
+    favorites: state.prefs.favorites.filter((f) => f !== id),
+    places: state.prefs.places.filter((f) => f !== id),
+  };
+  savePrefs(state.prefs);
+  location.hash = '#/';
+  refresh(false);
 }
 
 // Scala colori neve: dal blu al viola con l'intensità (colori fissi solo per la neve).
@@ -217,7 +245,7 @@ function toggleAspect(placeId, aspect) {
 
 async function refreshAvalanche(force = false) {
   try {
-    state.aval = await loadAvalanche(PLACES, { force });
+    state.aval = await loadAvalanche(myPlaces(), { force });
   } catch (err) {
     console.error(err);
   }
@@ -225,10 +253,10 @@ async function refreshAvalanche(force = false) {
 }
 
 async function loadAvalancheArchive(day) {
-  state.avalArchive = { day, n: PLACES.length, data: null };
+  state.avalArchive = { day, n: state.prefs.places.length, data: null };
   render();
   try {
-    const data = await loadAvalanche(PLACES, { day });
+    const data = await loadAvalanche(myPlaces(), { day });
     if (state.avalArchive?.day === day) state.avalArchive = { ...state.avalArchive, data };
   } catch (err) {
     console.error(err);
@@ -248,7 +276,8 @@ async function refresh(force = false) {
   ptr.classList.add('spinning');
   render();
   try {
-    state.forecast = await loadForecast(PLACES, { force });
+    const mine = myPlaces();
+    state.forecast = mine.length ? await loadForecast(mine, { force }) : { byPlace: {}, fetchedAt: Date.now() };
   } catch (err) {
     console.error(err);
     state.error = 'Non riesco a scaricare le previsioni. Controlla la connessione e riprova.';
@@ -376,7 +405,7 @@ function placeHead(place, band = overviewBand(place), side = null) {
   const region = REGIONS[place.region];
   const fav = isFav(place.id);
   return `<header class="place-head">
-    <button type="button" class="star" data-fav="${place.id}" aria-pressed="${fav}" aria-label="${fav ? 'Togli dai preferiti' : 'Aggiungi ai preferiti'}">${fav ? '★' : '☆'}</button>
+    <button type="button" class="star" data-fav="${place.id}" aria-pressed="${fav}" aria-label="${fav ? 'Togli la stella' : 'Metti la stella: resta in alto'}">${fav ? '★' : '☆'}</button>
     <a class="place-title" href="#/posto/${place.id}">
       <h2>${esc(place.name)}</h2>
       <p class="place-sub">${place.elevations[band]} m${side ? '' : ` · ${esc(region?.name || '')}`}</p>
@@ -512,13 +541,10 @@ function forecastCard(place) {
 }
 
 function renderOverview() {
-  // Preferiti nell'ordine scelto (state.prefs.favorites).
-  const favs = state.prefs.favorites.map(placeById).filter(Boolean);
-  // I posti solo "visti" (provvisori) non entrano nella panoramica finché non sono preferiti.
-  const others = PLACES.filter((p) => !isFav(p.id) && !p.temp);
-  const showAll = state.prefs.showAll;
-  const empty = favs.length === 0 && !showAll;
-  let visible = showAll ? [...favs, ...others] : favs;
+  // In alto i posti con la stella, nell'ordine scelto (state.prefs.favorites); sotto gli altri posti cercati.
+  let favs = state.prefs.favorites.map(placeById).filter(Boolean);
+  let others = myPlaces().filter((p) => !isFav(p.id));
+  const empty = favs.length + others.length === 0;
   const sort = state.prefs.sort;
   if (state.forecast && sort !== 'mio') {
     const val = (p) => {
@@ -526,8 +552,11 @@ function renderOverview() {
       if (!s) return -1;
       return sort === 'last24' ? s.last24 ?? -1 : snowTotals(s)[sort]?.median ?? -1;
     };
-    visible = [...visible].sort((a, b) => val(b) - val(a));
+    const byVal = (list) => [...list].sort((a, b) => val(b) - val(a));
+    favs = byVal(favs);
+    others = byVal(others);
   }
+  const reorderFavs = state.prefs.favorites.map(placeById).filter(Boolean);
 
   let body = '';
   if (state.error && !state.forecast) {
@@ -535,13 +564,13 @@ function renderOverview() {
   } else if (!state.forecast) {
     body = `<p class="loading">Scarico le previsioni dei modelli…</p>`;
   } else {
-    body = visible.map(forecastCard).join('');
+    body = favs.map(forecastCard).join('') + others.map(forecastCard).join('');
   }
   if (empty) {
     body = `<div class="empty">
       <p class="empty-title">Nessun posto, per ora</p>
-      <p>Aggiungi i posti dove vai a sciare: qui vedrai la neve prevista, il vento e la finestra buona di ognuno.</p>
-      <a class="btn" href="#/aggiungi">+ Aggiungi un posto</a>
+      <p>Cerca i posti dove vai a sciare: restano qui, con la neve prevista, il vento e la finestra buona. Con la stella li tieni in alto.</p>
+      <a class="btn" href="#/aggiungi">Cerca un posto</a>
       <a class="btn ghost" href="#/trasferisci">Li ho già su un altro dispositivo</a>
     </div>`;
   }
@@ -554,19 +583,18 @@ function renderOverview() {
     : '';
 
   app.innerHTML = `
-    <h1 class="sr-only">Preferiti</h1>
-    ${empty ? '' : state.reorder && favs.length > 1 ? reorderList(favs) : sortSwitch()}
+    <h1 class="sr-only">Località</h1>
+    ${empty ? '' : state.reorder && reorderFavs.length > 1 ? reorderList(reorderFavs) : sortSwitch()}
     ${empty ? '' : status}
     ${state.error && state.forecast ? `<div class="notice">${esc(state.error)}</div>` : ''}
     ${body}
-    <div class="toolbar end">
-      ${empty ? '' : '<a class="btn ghost add-place" href="#/aggiungi">+ Aggiungi posto</a>'}
-      <label class="toggle"><input type="checkbox" data-showall ${showAll ? 'checked' : ''}> Anche i non preferiti</label>
-    </div>
-    ${empty ? '' : '<p class="transfer-link"><a href="#/trasferisci">Porta i preferiti su un altro dispositivo</a></p>'}
+    ${empty ? '' : `<div class="toolbar end">
+      <a class="btn ghost add-place" href="#/aggiungi">+ Cerca un posto</a>
+      <a class="transfer-link" href="#/trasferisci">Porta i posti su un altro dispositivo</a>
+    </div>`}
     <details class="explain">
       <summary>Come leggere</summary>
-      <p>Accanto al nome: neve delle ultime 24 ore e totali dei prossimi 1-5 e 6-10 giorni. Per ogni giorno: massima, cielo, cm di neve, vento e finestra buona. In alto scegli l'ordine dei posti; con le frecce riordini i preferiti.</p>
+      <p>Accanto al nome: neve delle ultime 24 ore e totali dei prossimi 1-5 e 6-10 giorni. Per ogni giorno: massima, cielo, cm di neve, vento e finestra buona. I posti con la stella stanno in alto. In alto scegli l'ordine; con le frecce riordini quelli con la stella.</p>
       <p>Neve stimata: mediana tra i modelli (${MODELS.map((m) => m.label).join(', ')}). Tieni il dito su un numero per l'intervallo tra i modelli. Dal 6° giorno restano solo ECMWF e GFS.</p>
       <p>Finestra buona: <span class="win win-aperta legend"></span> sì · <span class="win win-aperta win-nobul legend"></span> sì, ma senza bollettino · <span class="win win-avvisi legend"></span> avvisi · <span class="win win-chiusa legend"></span> chiusa · <span class="win win-meteo legend"></span> meteo non buono. Un avviso conta più del meteo.</p>
       <p>Quota di metà per tutti i posti; nella pagina del posto si sceglie valle, metà o cima. Vento: in quota (circa 3000 m), km/h e provenienza. Raffiche: vicino al suolo.</p>
@@ -575,7 +603,7 @@ function renderOverview() {
 
 function favButton(place) {
   const fav = isFav(place.id);
-  const label = fav ? 'Togli dai preferiti' : 'Aggiungi ai preferiti';
+  const label = fav ? 'Togli la stella' : 'Metti la stella: resta in alto';
   return `<button type="button" class="fav-btn" data-fav="${place.id}" aria-pressed="${fav}" aria-label="${label}" title="${label}">${fav ? '★' : '☆'}</button>`;
 }
 
@@ -583,12 +611,12 @@ function favButton(place) {
 
 // step: distanza tra le righe dell'asse verticale (in base all'escursione); tick: testo con l'unità.
 const CHARTS = [
-  { id: 'snowTotal', label: 'Neve totale', unit: 'cm', min: 0, minSpan: 10, step: (r) => (r <= 40 ? 5 : r <= 80 ? 10 : 20), tick: (v) => `${v}cm` },
-  { id: 'snowLine', label: 'Quota neve', unit: 'm', min: 0, ref: 'elev', step: (r) => (r <= 3000 ? 500 : 1000), tick: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1).replace('.0', '')}k` : `${v}`) },
-  { id: 'temp', label: 'Temperatura', unit: '°C', ref: 0, step: (r) => (r <= 40 ? 5 : 10), tick: (v) => `${v}°` },
-  { id: 'wind', label: 'Vento in quota', unit: 'km/h', min: 0, minSpan: 40, bands: true, arrows: true, step: (r) => (r <= 80 ? 10 : 20) },
-  { id: 'gust', label: 'Raffiche', unit: 'km/h', min: 0, minSpan: 40, bands: true, step: (r) => (r <= 80 ? 10 : 20) },
-  { id: 'cloud', label: 'Nuvole', unit: '%', min: 0, max: 100, step: () => 25, tick: (v) => `${v}%` },
+  { id: 'snowTotal', help: "Quanta neve nuova si accumula da oggi in avanti alla quota scelta. Dove la linea sale sta nevicando; dove resta piatta no.", label: 'Neve totale', unit: 'cm', min: 0, minSpan: 10, step: (r) => (r <= 40 ? 5 : r <= 80 ? 10 : 20), tick: (v) => `${v}cm` },
+  { id: 'snowLine', help: "La quota sopra cui cade neve e sotto cui piove.", label: 'Quota neve', unit: 'm', min: 0, ref: 'elev', step: (r) => (r <= 3000 ? 500 : 1000), tick: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1).replace('.0', '')}k` : `${v}`) },
+  { id: 'temp', help: "Temperatura dell'aria alla quota scelta.", label: 'Temperatura', unit: '°C', ref: 0, step: (r) => (r <= 40 ? 5 : 10), tick: (v) => `${v}°` },
+  { id: 'wind', help: "Vento medio a circa 3000 m, quello delle creste, con la direzione da cui arriva.", label: 'Vento in quota', unit: 'km/h', min: 0, minSpan: 40, bands: true, arrows: true, step: (r) => (r <= 80 ? 10 : 20) },
+  { id: 'gust', help: "Le punte di vento vicino al suolo, più forti del vento medio. Contano per gli impianti e per stare in cresta o in vetta.", label: 'Raffiche', unit: 'km/h', min: 0, minSpan: 40, bands: true, step: (r) => (r <= 80 ? 10 : 20) },
+  { id: 'cloud', help: "Quanta parte del cielo è coperta.", label: 'Nuvole', unit: '%', min: 0, max: 100, step: () => 25, tick: (v) => `${v}%` },
 ];
 const WIND_BANDS = [
   { from: 0, to: 20, label: 'debole', cls: 'b-light' },
@@ -721,6 +749,7 @@ function chartBlock(place, band) {
     </select></label>`;
   return `<section class="charts">
     <div class="chips scroll" role="tablist" aria-label="Grafico" data-keep-scroll="chart-tabs">${tabs}</div>
+    <p class="chart-help">${esc(cur.help)}</p>
     <div class="chart-bar">${pick}<span class="chart-legend"><span class="lg-med${hl ? ' lg-hl' : ''}"></span>${
       hl ? esc(MODELS.find((m) => m.id === hl).label) : 'mediana'
     } · <span class="lg-model"></span> singoli modelli</span></div>
@@ -734,6 +763,12 @@ function chartBlock(place, band) {
 function renderDetail(id, params) {
   const place = placeById(id);
   if (!place) return renderNotFound();
+  // Un posto aperto da un link e non ancora nell'elenco ci entra: serve per scaricare la sua previsione.
+  if (!inList(id)) {
+    state.prefs = { ...state.prefs, places: [...state.prefs.places, id] };
+    savePrefs(state.prefs);
+    queueMicrotask(() => refresh(false));
+  }
   const band = place.single ? 'valle' : state.prefs.band;
   // Il giorno toccato nei preferiti si apre una volta; poi lo chiude o apre l'utente.
   const sel0 = params.get('giorno');
@@ -743,14 +778,16 @@ function renderDetail(id, params) {
   const card = s ? snowCard(place, { detail: true }) : '';
 
   app.innerHTML = `
-    <p class="back"><a href="${esc(state.backHref || '#/')}" data-back>← ${esc(state.backLabel || 'Preferiti')}</a></p>
+    <p class="back"><a href="${esc(state.backHref || '#/')}" data-back>← ${esc(state.backLabel || 'Località')}</a></p>
     <div class="detail-head">
       <h1 class="page-title">${esc(place.name)}</h1>
       ${favButton(place)}
     </div>
-    ${place.single || place.custom ? `<p class="place-sub">${place.single ? `Quota ${place.elevations.valle} m` : ''}${
-      place.custom ? `${place.single ? ' · ' : ''}<a href="#/aggiungi?modifica=${place.id}">Modifica</a>` : ''
-    }</p>` : ''}
+    <p class="place-sub">${place.single ? `Quota ${place.elevations.valle} m · ` : ''}${
+      place.custom
+        ? `<a href="#/aggiungi?modifica=${place.id}">Modifica o elimina</a>`
+        : `<button type="button" class="linklike" data-remove-place="${place.id}">Togli dall'elenco</button>`
+    }</p>
     ${place.single ? '' : `<div class="toolbar">${bandSwitch(place)}</div>`}
     <div class="detail-card">${card.replace(/<header[\s\S]*?<\/header>/, '').replace(/<footer[\s\S]*<\/footer>/, '')}</div>
     ${chartBlock(place, band)}
@@ -780,10 +817,9 @@ function renderAvalanche(params) {
   const today = romeDate();
   const asked = params.get('giorno');
   const archiveDay = asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) && asked !== today ? asked : null;
-  if (archiveDay && (state.avalArchive?.day !== archiveDay || state.avalArchive?.n !== PLACES.length)) loadAvalancheArchive(archiveDay);
+  if (archiveDay && (state.avalArchive?.day !== archiveDay || state.avalArchive?.n !== state.prefs.places.length)) loadAvalancheArchive(archiveDay);
   const aval = archiveDay ? state.avalArchive?.data : state.aval;
-  const favs = PLACES.filter((p) => isFav(p.id));
-  const places = [...favs, ...PLACES.filter((p) => !isFav(p.id))];
+  const places = myPlaces();
   app.innerHTML = avalPage({ places, aval, archiveDay, today });
   // Dal badge della Panoramica: porta alla scheda del posto (una volta sola per indirizzo).
   const focus = params.get('posto');
@@ -833,24 +869,23 @@ async function copyCode(btn) {
 }
 
 function renderNotFound() {
-  app.innerHTML = `<h1 class="page-title">Pagina non trovata</h1><p><a href="#/">Torna alla panoramica</a></p>`;
+  app.innerHTML = `<h1 class="page-title">Pagina non trovata</h1><p><a href="#/">Torna alle località</a></p>`;
 }
 
 // Posti aggiunti dall'utente (js/myplaces.js li inserisce in PLACES).
 function placeSaved(place, { fav = false } = {}) {
-  if (fav && !isFav(place.id)) {
-    state.prefs = { ...state.prefs, favorites: [...state.prefs.favorites, place.id] };
-    savePrefs(state.prefs);
-  }
+  state.prefs = {
+    ...state.prefs,
+    places: inList(place.id) ? state.prefs.places : [...state.prefs.places, place.id],
+    favorites: fav && !isFav(place.id) ? [...state.prefs.favorites, place.id] : state.prefs.favorites,
+  };
+  savePrefs(state.prefs);
   location.hash = `#/posto/${place.id}`;
   refresh(false);
 }
 
 function placeDeleted(id) {
-  state.prefs = { ...state.prefs, favorites: state.prefs.favorites.filter((f) => f !== id) };
-  savePrefs(state.prefs);
-  location.hash = '#/';
-  refresh(false);
+  removePlace(id);
 }
 
 // ---------- router ----------
@@ -906,13 +941,13 @@ function renderRoute() {
     case 'aggiungi':
       return renderAddPage(app, r.params, { onSaved: placeSaved, onDeleted: placeDeleted });
     case 'radar':
-      return mountRadar(app, { places: PLACES, favorites: state.prefs.favorites });
+      return mountRadar(app, { places: myPlaces() });
     case 'valanghe':
       return renderAvalanche(r.params);
     case 'trasferisci':
       return renderTransfer(r.params);
     case 'stagione':
-      return renderSeason(app, r.params, { places: PLACES, prefs: state.prefs, isFav, rerender: render });
+      return renderSeason(app, r.params, { places: myPlaces(), prefs: state.prefs, rerender: render });
     default:
       return renderNotFound();
   }
@@ -965,6 +1000,8 @@ app.addEventListener('click', (e) => {
   const asp = e.target.closest('[data-aspect]');
   if (asp) return toggleAspect(asp.dataset.placeAspect, asp.dataset.aspect);
   if (e.target.closest('[data-retry]')) return refresh(true);
+  const rm = e.target.closest('[data-remove-place]');
+  if (rm) return removePlace(rm.dataset.removePlace);
   const copy = e.target.closest('[data-transfer-copy], [data-transfer-share]');
   if (copy) return copyCode(copy);
   if (e.target.closest('[data-transfer-import]')) return importCode(app.querySelector('[data-transfer-input]').value);
@@ -976,13 +1013,12 @@ app.addEventListener('submit', (e) => {
   location.hash = day && day !== romeDate() ? `#/valanghe?giorno=${day}` : '#/valanghe';
 });
 app.addEventListener('change', (e) => {
-  if (e.target.matches('[data-showall]')) setPrefs({ showAll: e.target.checked });
   if (e.target.matches('[data-sortsel]')) setPrefs({ sort: e.target.value });
   if (e.target.matches('[data-chart-model]')) setPrefs({ chartModel: e.target.value });
 });
 
 // Da quale scheda si è arrivati al posto, per il link "indietro".
-const BACK_LABEL = { panoramica: 'Preferiti', valanghe: 'Valanghe', radar: 'Radar', stagione: 'Stagione' };
+const BACK_LABEL = { panoramica: 'Località', valanghe: 'Valanghe', radar: 'Radar', stagione: 'Stagione' };
 let prevHash = location.hash;
 window.addEventListener('hashchange', () => {
   const from = route(prevHash);

@@ -269,15 +269,15 @@ function dayPanel(d, a, elev, index, n) {
 
 // ---------- pagina ----------
 
-export function renderSeason(app, params, { places, prefs, isFav, rerender }) {
+export function renderSeason(app, params, { places, prefs, rerender }) {
   const today = romeDate();
   const thisYear = currentSeasonYear(today);
   const year = Number(params.get('stagione')) || thisYear;
   const season = seasonRange(year, today);
-  const list = [...places.filter((p) => isFav(p.id)), ...places.filter((p) => !isFav(p.id) && !p.temp)];
+  const list = places; // i miei posti, già con quelli con la stella in alto
   const place = places.find((p) => p.id === params.get('posto')) || list[0];
   if (!place) {
-    app.innerHTML = '<h1 class="page-title">Stagione</h1><p class="muted">Nessun posto.</p>';
+    app.innerHTML = '<h1 class="page-title">Stagione</h1><div class="empty"><p class="empty-title">Nessun posto, per ora</p><p>I posti che cerchi compaiono anche qui, con la loro stagione.</p><a class="btn" href="#/aggiungi">Cerca un posto</a></div>';
     return;
   }
   const band = place.single ? 'valle' : prefs.band;
@@ -368,7 +368,7 @@ export function renderSeason(app, params, { places, prefs, isFav, rerender }) {
     const d = wxDays[Math.max(0, Math.min(wxDays.length - 1, index))];
     if (!d) return;
     ui.sel = { key: selKey, date: d.date };
-    renderSeason(app, params, { places, prefs, isFav, rerender });
+    renderSeason(app, params, { places, prefs, rerender });
   };
   app.querySelectorAll('[data-sg-plot]').forEach((el) =>
     el.addEventListener('click', (e) => {
