@@ -2,7 +2,7 @@
 // oppure tocco sulla mappa (Leaflet), quote proposte in automatico e modificabili.
 import { PLACES } from './places.js';
 import { PRESETS } from './presets.js';
-import { savePlace, deletePlace, getCustomPlace } from './myplaces.js';
+import { savePlace, deletePlace, getPlace } from './myplaces.js';
 import { loadLeaflet } from './leaflet-loader.js';
 import {
   REGION_OPTIONS,
@@ -100,7 +100,7 @@ function formHtml(loading) {
       ${
         edit
           ? `<button class="btn" type="submit" name="action" value="save" ${loading ? 'disabled' : ''}>Salva modifiche</button>
-      <button class="btn ghost danger" type="button" data-delete-place>Elimina posto</button>`
+      ${sel.builtin ? '' : `<button class="btn ghost danger" type="button" data-delete-place>${sel.override ? 'Ripristina originale' : 'Elimina posto'}</button>`}`
           : `<button class="btn" type="submit" name="action" value="view" ${loading ? 'disabled' : ''}>Vedi previsioni →</button>
       <button class="btn ghost" type="submit" name="action" value="fav" ${loading ? 'disabled' : ''}>★ Salva con la stella</button>`
       }
@@ -286,7 +286,7 @@ export function renderAddPage(app, params, { onSaved, onDeleted }) {
   if (current && current.dataset.key === key) return;
 
   const editId = params.get('modifica');
-  const editing = editId ? getCustomPlace(editId) : null;
+  const editing = editId ? getPlace(editId) : null;
   token++;
   sel = editing
     ? {
@@ -298,6 +298,8 @@ export function renderAddPage(app, params, { onSaved, onDeleted }) {
         regionName: editing.regionName,
         elevations: { ...editing.elevations },
         single: Boolean(editing.single),
+        builtin: !editing.custom,
+        override: Boolean(editing.override),
       }
     : null;
 
@@ -371,10 +373,12 @@ export function renderAddPage(app, params, { onSaved, onDeleted }) {
       });
     }
     if (e.target.closest('[data-delete-place]') && sel?.id) {
-      if (confirm(`Eliminare ${sel.name} dai tuoi posti?`)) {
+      const restore = sel.override;
+      if (confirm(restore ? `Ripristinare ${sel.name} com'era all'inizio?` : `Eliminare ${sel.name} dai tuoi posti?`)) {
         const id = sel.id;
         deletePlace(id);
-        onDeleted?.(id);
+        if (restore) onSaved?.(getPlace(id), {});
+        else onDeleted?.(id);
       }
     }
   });

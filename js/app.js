@@ -829,7 +829,7 @@ function renderDetail(id, params) {
         `<div class="menu"><button type="button" class="info-btn" data-menu aria-haspopup="true" aria-expanded="${state.menu}" aria-label="Altre azioni" title="Altre azioni">⋯</button>${
           state.menu
             ? `<div class="menu-list" role="menu">${
-                place.custom ? `<a role="menuitem" href="#/aggiungi?modifica=${place.id}">Modifica</a>` : ''
+                `<a role="menuitem" href="#/aggiungi?modifica=${place.id}">Modifica</a>`
               }<button type="button" role="menuitem" class="menu-danger" data-remove-place="${place.id}">Elimina</button></div>`
             : ''
         }</div>`
