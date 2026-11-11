@@ -59,7 +59,7 @@ export function modelScore(days, i, id, elev) {
 
 /** Livello di polvere per ogni giorno di `days` (lista continua: passati + previsione). */
 export function powderDays(days, elev, from = 0) {
-  return days.slice(from).map((day, k) => {
+  const out = days.slice(from).map((day, k) => {
     const i = from + k;
     const scores = Object.keys(day.models).map((id) => modelScore(days, i, id, elev)).filter((v) => v != null);
     const score = median(scores);
@@ -70,4 +70,14 @@ export function powderDays(days, elev, from = 0) {
     const ratio = median(ratios);
     return { date: day.date, level: level.id, label: level.label, score, ratio: ratio == null ? null : Math.round(ratio) };
   });
+  // Il giorno dopo la nevicata il rapporto vale ancora, se la neve non è stata rovinata (livello diverso da "no").
+  for (let k = 1; k < out.length; k++) {
+    const d = out[k];
+    const prev = out[k - 1];
+    if (d.ratio == null && prev.ratio != null && d.level && d.level !== 'no') {
+      d.ratio = prev.ratio;
+      d.carried = true;
+    }
+  }
+  return out;
 }

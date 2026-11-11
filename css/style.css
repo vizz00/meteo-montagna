@@ -665,3 +665,4 @@ h1, h2, h3, .page-title, .summary-main, .total-num, .place-head .ss-cell b, .dl 
 .chart-help { margin: 0 2px 10px; font-size: 13px; line-height: 1.35; color: var(--muted); max-width: 70ch; }
 
 .pw-r { align-self: center; font-size: 10px; line-height: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pw-r.pw-carry { opacity: .55; }
