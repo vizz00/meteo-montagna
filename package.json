@@ -1,5 +1,5 @@
 {
-  "name": "meteo-montagna",
+  "name": "polvere",
   "private": true,
   "type": "module",
   "description": "PWA statica: nessuna dipendenza, nessuna compilazione. Serve solo per i test.",

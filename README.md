@@ -2,7 +2,7 @@
 
 PWA per scialpinismo e freeride: in un'unica schermata previsioni di neve in quota, radar e bollettini valanghe dei posti dove vai.
 
-App: https://vizz00.github.io/meteo-montagna/
+App: https://vizz00.github.io/polvere/
 
 ## Cosa c'è oggi
 
