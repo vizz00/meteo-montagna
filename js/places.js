@@ -66,7 +66,7 @@ export function externalLinks(place) {
 
 // Webcam vicine al posto: pagina Windy Webcams centrata sulle coordinate (o link dedicato `webcam`).
 export function webcamUrl(place) {
-  return place.webcam || `https://www.windy.com/-Webcams-webcams?${place.lat},${place.lon},12`;
+  return place.webcam || `https://www.windy.com/-Webcams/webcams?${place.lat.toFixed(3)},${place.lon.toFixed(3)},11`;
 }
 
 export const WEBCAM_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="6.5"/><circle cx="12" cy="9" r="2.4"/><path d="M12 15.5V19M7.5 20h9"/></svg>';
