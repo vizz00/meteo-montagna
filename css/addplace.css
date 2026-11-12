@@ -94,3 +94,9 @@
 .menu-list a, .menu-list button { display: flex; align-items: center; min-height: 44px; padding: 0 16px; border: 0; background: none; color: var(--text); font: inherit; text-decoration: none; text-align: left; cursor: pointer; }
 .menu-list a:hover, .menu-list button:hover { background: var(--bg-2); }
 .menu-list .menu-danger { color: var(--warn); }
+.cam-btn { display: grid; place-items: center; min-width: 44px; min-height: 44px; color: var(--muted); border-radius: 10px; }
+.cam-btn:hover, .cam-btn:focus-visible { color: var(--accent); }
+/* Riga dei link del posto: sempre su una sola riga, la webcam è un'icona quadrata */
+.links-row:has(.cam-link) { flex-wrap: nowrap; }
+.links-row:has(.cam-link) .btn { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; white-space: nowrap; }
+.links-row:has(.cam-link) .cam-link { flex: 0 0 44px; }
