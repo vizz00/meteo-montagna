@@ -1,4 +1,4 @@
-import { PLACES, BANDS, REGIONS, externalLinks } from './places.js';
+import { PLACES, BANDS, REGIONS, externalLinks, webcamUrl, WEBCAM_ICON } from './places.js';
 import { MODELS, rangeText, roundCm, compass, totalRange } from './snow.js';
 import { loadForecast, loadDetail } from './forecast.js';
 import { lineChart, precipStrip, scrollCharts, setChartWidth, chartHourAt } from './charts.js';
@@ -833,7 +833,7 @@ function renderDetail(id, params) {
               }<button type="button" role="menuitem" class="menu-danger" data-remove-place="${place.id}">Elimina</button></div>`
             : ''
         }</div>`
-      }${favButton(place)}</div>
+      }<a class="cam-btn" href="${esc(webcamUrl(place))}" target="_blank" rel="noopener" aria-label="Webcam vicine" title="Webcam vicine">${WEBCAM_ICON}</a>${favButton(place)}</div>
     </div>
     ${place.single ? `<p class="place-sub">Quota ${place.elevations.valle} m</p>` : ''}
     ${place.single ? '' : `<div class="toolbar">${bandSwitch(place)}</div>`}
@@ -842,8 +842,8 @@ function renderDetail(id, params) {
     ${avalPlaceBlock(place, state.aval, { heading: 'Bollettino valanghe' })}
     ${windowSection(place, band, params.get('giorno'))}
     <p class="links-row">${externalLinks(place)
-      .map((l) => `<a class="btn ghost" href="${l.url}" target="_blank" rel="noopener">${l.label} ↗</a>`)
-      .join('')}</p>`;
+      .map((l) => `<a class="btn ghost" href="${l.url}" target="_blank" rel="noopener">${l.label}</a>`)
+      .join('')}<a class="btn ghost cam-link" href="${esc(webcamUrl(place))}" target="_blank" rel="noopener" aria-label="Webcam vicine" title="Webcam vicine">${WEBCAM_ICON}</a></p>`;
   const sel = params.get('giorno');
   // Si scorre al giorno solo quando la sua riga esiste (al primo caricamento la previsione arriva dopo).
   if (sel && state.scrolledDay !== location.hash && document.getElementById(`win-${sel}`)) {
