@@ -64,9 +64,61 @@ export function externalLinks(place) {
   ];
 }
 
-// Webcam vicine al posto: pagina Windy Webcams centrata sulle coordinate (o link dedicato `webcam`).
+// Pagine webcam verificate per i posti principali; per gli altri Meteoblue sulle coordinate.
+const WEBCAMS = {
+  cervinia: 'https://www.cervinia.it/webcam',
+  champoluc: 'https://it.bergfex.com/champoluc/webcams/',
+  alagna: 'https://monterosaski.eu/webcam',
+};
+// Pagine webcam delle località predefinite sulla mappa (da ricerca, per nome in minuscolo).
+const WEBCAMS_BY_NAME = {
+  "passo del nufenen / gries": "https://en.swisswebcams.ch/webcams/nufenen-pass",
+  "passo san giacomo": "https://www.meteoblue.com/it/tempo/webcams/passo-san-giacomo_svizzera_2658833",
+  "courmayeur": "https://www.courmayeur-montblanc.com/meteo-cam/",
+  "la thuile": "https://www.lathuile.it/it/webcam",
+  "pila": "https://pila.it/en/real-time/webcams/",
+  "gressoney": "https://www.gressoneymonterosa.it/en/webcam",
+  "cogne": "https://it.bergfex.com/cogne-gran-paradiso/webcams/c4735/",
+  "valgrisenche": "https://www.bergfex.com/valgrisenche/webcams/",
+  "rhêmes-notre-dame": "https://www.valdirhemes.net/webcam.htm",
+  "colle del gran san bernardo": "https://letunnel.com/meteo/webcam/",
+  "torgnon": "https://www.torgnon.org/en/web-cams/",
+  "macugnaga": "https://macugnaga-monterosa.com/contenuti/325814/webcam",
+  "formazza / riale": "https://www.distrettolaghi.it/en/webcams/riale-centro-fondo-valle-formazza",
+  "devero": "https://www.meteoblue.com/it/tempo/webcams/alpe-devero_italia_3183231",
+  "bardonecchia": "https://www.bardonecchiaski.com/en/live-info/webcam-in-bardonecchia",
+  "sestriere": "https://www.vialattea.it/webcam/",
+  "prali": "https://www.skiresort.com/en/ski-resort/prali/webcams/",
+  "cesana / claviere": "https://www.webcamvialattea.it/",
+  "ceresole reale": "https://www.pngp.it/webcam",
+  "livigno": "https://www.livigno.eu/en/webcam",
+  "bormio": "https://www.bormio.eu/en/live-info/webcams",
+  "santa caterina valfurva": "https://www.santacaterina.it/webcam/",
+  "passo dello stelvio": "https://passostelvio.eu/webcam/",
+  "madesimo": "https://www.madesimo.eu/en/webcam/",
+  "chiesa in valmalenco": "https://www.sondrioevalmalenco.it/it/webcam",
+  "ponte di legno / tonale": "https://www.pontedilegnotonale.com/it/webcam/",
+  "val bedretto (ossasco)": "https://www.meteoblue.com/it/tempo/webcams/bedretto_svizzera_2661582",
+  "passo del sempione": "https://www.meteoblue.com/it/tempo/webcams/passo-del-sempione_svizzera_2658580",
+  "passo del san gottardo": "https://www.meteoblue.com/it/tempo/webcams/passo-del-san-gottardo_svizzera_2658828",
+  "antrona / cheggio": "https://www.distrettolaghi.it/it/webcams/cheggio-valle-antrona",
+  "san bernardino": "https://sanbernardino-swissalps.com/live",
+  "spluga / montespluga": "https://montespluga.panomax.com/",
+  "maloja / val bregaglia": "https://www.skiresort.com/en/ski-holiday-in/maloja-796/webcams/",
+  "foppolo / carona (orobie)": "https://foppolowebcam.it/",
+  "val masino": "https://webcam.valtline.it/webcam-sasso-remenno",
+  "zermatt": "https://www.matterhornparadise.ch/it/informazioni/webcams",
+  "saas-fee": "https://www.saas-fee.ch/en/webcams",
+  "verbier": "https://www.verbier.ch/en/practice/live/webcams/",
+  "arolla": "https://www.myswitzerland.com/it-it/destinazioni/panoramas/arolla/",
+  "fiesch / aletsch": "https://www.aletscharena.ch/en/here-now/live/webcams",
+};
+// Webcam intorno alle coordinate del posto (funziona per qualsiasi punto).
+function meteoblueWebcams({ lat, lon }) {
+  return `https://www.meteoblue.com/it/tempo/webcams/${Math.abs(lat).toFixed(3)}${lat < 0 ? 'S' : 'N'}${Math.abs(lon).toFixed(3)}${lon < 0 ? 'W' : 'E'}`;
+}
 export function webcamUrl(place) {
-  return place.webcam || `https://www.windy.com/-Webcams/webcams?${place.lat.toFixed(3)},${place.lon.toFixed(3)},11`;
+  return place.webcam || WEBCAMS[place.id] || WEBCAMS_BY_NAME[place.name.toLowerCase()] || meteoblueWebcams(place);
 }
 
 export const WEBCAM_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="6.5"/><circle cx="12" cy="9" r="2.4"/><path d="M12 15.5V19M7.5 20h9"/></svg>';
