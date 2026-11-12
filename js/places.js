@@ -64,7 +64,7 @@ export function externalLinks(place) {
   ];
 }
 
-// Pagine webcam verificate per i posti principali; per gli altri si cerca "webcam <nome>".
+// Pagine webcam verificate per i posti principali; per gli altri Meteoblue sulle coordinate.
 const WEBCAMS = {
   cervinia: 'https://www.cervinia.it/webcam',
   champoluc: 'https://it.bergfex.com/champoluc/webcams/',
@@ -113,8 +113,12 @@ const WEBCAMS_BY_NAME = {
   "arolla": "https://www.myswitzerland.com/it-it/destinazioni/panoramas/arolla/",
   "fiesch / aletsch": "https://www.aletscharena.ch/en/here-now/live/webcams",
 };
+// Webcam intorno alle coordinate del posto (funziona per qualsiasi punto).
+function meteoblueWebcams({ lat, lon }) {
+  return `https://www.meteoblue.com/it/tempo/webcams/${Math.abs(lat).toFixed(3)}${lat < 0 ? 'S' : 'N'}${Math.abs(lon).toFixed(3)}${lon < 0 ? 'W' : 'E'}`;
+}
 export function webcamUrl(place) {
-  return place.webcam || WEBCAMS[place.id] || WEBCAMS_BY_NAME[place.name.toLowerCase()] || `https://www.google.com/search?q=${encodeURIComponent(`webcam ${place.name} neve`)}`;
+  return place.webcam || WEBCAMS[place.id] || WEBCAMS_BY_NAME[place.name.toLowerCase()] || meteoblueWebcams(place);
 }
 
 export const WEBCAM_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="6.5"/><circle cx="12" cy="9" r="2.4"/><path d="M12 15.5V19M7.5 20h9"/></svg>';
