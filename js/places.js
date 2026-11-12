@@ -70,8 +70,53 @@ const WEBCAMS = {
   champoluc: 'https://it.bergfex.com/champoluc/webcams/',
   alagna: 'https://monterosaski.eu/webcam',
 };
+// Pagine webcam delle località predefinite sulla mappa (da ricerca, per nome in minuscolo).
+const WEBCAMS_BY_NAME = {
+  "courmayeur": "https://www.courmayeurmontblanc.it/en/webcam-and-weather-forecasts/",
+  "la thuile": "https://www.lathuile.it/it/webcam",
+  "pila": "https://pila.it/en/real-time/webcams/",
+  "gressoney": "https://www.gressoneymonterosa.it/en/webcam",
+  "cogne": "https://www.skiresort.com/en/ski-holiday-in/cogne-1516/webcams/",
+  "valgrisenche": "https://www.bergfex.com/valgrisenche/webcams/",
+  "rhêmes-notre-dame": "https://www.valdirhemes.net/webcam.htm",
+  "valtournenche": "https://www.bergfex.com/valtournenche/webcams/",
+  "colle del gran san bernardo": "https://www.skiresort.com/en/weather/webcams/great-saint-bernard-gran-san-bernardo/",
+  "torgnon": "https://www.torgnon.org/en/web-cams/",
+  "macugnaga": "https://macugnaga-monterosa.com/contenuti/325814/webcam",
+  "formazza / riale": "https://www.distrettolaghi.it/en/webcams/riale-centro-fondo-valle-formazza",
+  "devero": "https://www.dovesciare.it/webcam/alpe_devero",
+  "bardonecchia": "https://www.bardonecchiaski.com/en/live-info/webcam-in-bardonecchia",
+  "sestriere": "https://www.vialattea.it/webcam/",
+  "prali": "https://www.skiresort.com/en/ski-resort/prali/webcams/",
+  "cesana / claviere": "https://www.webcamvialattea.it/",
+  "ceresole reale": "https://www.pngp.it/webcam",
+  "valle maira (acceglio)": "https://www.outdooractive.com/de/webcams/acceglio/webcams-in-acceglio/227975158/",
+  "valle varaita (chianale)": "https://www.outdooractive.com/en/webcams/valle-varaita/webcams-in-the-varaita-valley/334631763/",
+  "livigno": "https://www.livigno.eu/en/webcam",
+  "bormio": "https://www.bormio.eu/en/live-info/webcams",
+  "santa caterina valfurva": "https://www.santacaterina.it/webcam/",
+  "passo dello stelvio": "https://passostelvio.eu/webcam/",
+  "madesimo": "https://www.madesimo.eu/en/webcam/",
+  "chiesa in valmalenco": "https://www.sondrioevalmalenco.it/it/webcam",
+  "ponte di legno / tonale": "https://www.pontedilegnotonale.com/it/webcam/",
+  "val bedretto (ossasco)": "https://www.skiresort.it/vacanza-sulla-neve-a/bedretto-1914/webcams/",
+  "passo del sempione": "https://www.meteoblue.com/it/tempo/webcams/passo-del-sempione_svizzera_2658580",
+  "passo del san gottardo": "https://www.meteoblue.com/it/tempo/webcams/passo-del-san-gottardo_svizzera_2658828",
+  "alpe veglia": "https://www.3bmeteo.com/le_webcam/alpeveglia/8757",
+  "antrona / cheggio": "https://www.distrettolaghi.it/it/webcams/cheggio-valle-antrona",
+  "san bernardino": "https://sanbernardino-swissalps.com/live",
+  "spluga / montespluga": "https://montespluga.panomax.com/",
+  "maloja / val bregaglia": "https://www.skiresort.com/en/ski-holiday-in/maloja-796/webcams/",
+  "foppolo / carona (orobie)": "https://foppolowebcam.it/",
+  "val masino": "https://www.valmasino.info/en/weather-and-web-cam/",
+  "zermatt": "https://zermatt.swiss/en/info/webcams",
+  "saas-fee": "https://www.saas-fee.ch/en/webcams",
+  "verbier": "https://www.verbier.ch/en/practice/live/webcams/",
+  "arolla": "https://www.skiresort.com/en/ski-resort/arolla/webcams/",
+  "fiesch / aletsch": "https://www.aletscharena.ch/en/here-now/live/webcams",
+};
 export function webcamUrl(place) {
-  return place.webcam || WEBCAMS[place.id] || `https://www.google.com/search?q=${encodeURIComponent(`webcam ${place.name} neve`)}`;
+  return place.webcam || WEBCAMS[place.id] || WEBCAMS_BY_NAME[place.name.toLowerCase()] || `https://www.google.com/search?q=${encodeURIComponent(`webcam ${place.name} neve`)}`;
 }
 
 export const WEBCAM_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="6.5"/><circle cx="12" cy="9" r="2.4"/><path d="M12 15.5V19M7.5 20h9"/></svg>';
