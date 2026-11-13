@@ -1,6 +1,6 @@
 // Service worker: rende l'app installabile e apribile anche senza rete.
 // Quando cambi i file dell'app, aumenta il numero di VERSION.
-const VERSION = 'v38';
+const VERSION = 'v39';
 const CACHE = `mm-shell-${VERSION}`;
 // Tutti i file dell'app, così funziona senza rete già dalla prima apertura.
 const SHELL = [
@@ -32,7 +32,7 @@ const SHELL = [
   'icons/icon.svg',
   'icons/icon-192.png',
   'icons/icon-512.png',
-  'icons/apple-touch-icon.png',
+  'icons/apple-touch-icon-2.png',
 ];
 
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
