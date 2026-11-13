@@ -193,7 +193,8 @@ function placeMarker(lat, lon) {
 
 // Sfondi senza chiave: OpenStreetMap (anche in versione scura, invertita via CSS),
 // topografico (curve di livello) e satellite Esri.
-const LAYER_KEY = 'mm.mapLayer2';
+const LAYER_KEY = 'mm.mapLayer3';
+const MAPBOX_TOKEN = 'pk.eyJ1Ijoidml6ejAwIiwiYSI6ImNtd2V3d3R3ZjAxeWwyenIyYnBxd2g0dTEifQ.5a9kSc5frG-Ir-3OlZShAg';
 const DOT = '#2f7de1'; // un solo colore per tutti i pallini (poi i preferiti saranno gialli)
 const OSM = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
@@ -201,8 +202,13 @@ function baseLayers(L) {
   const osm = (className) =>
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: OSM, className });
   return {
-    Scura: osm('tiles-dark'),
+    // Stile Mapbox Outdoors (verde, curve di livello, impianti). Chiave pubblica: fatta per stare nei siti.
+    Outdoors: L.tileLayer(
+      `https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
+      { tileSize: 512, zoomOffset: -1, maxZoom: 20, attribution: '&copy; <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">Mapbox</a> &copy; OpenStreetMap' },
+    ),
     Chiara: osm(''),
+    Scura: osm('tiles-dark'),
     Topografica: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
       maxZoom: 17,
       attribution: `${OSM}, <a href="https://opentopomap.org" target="_blank" rel="noopener">OpenTopoMap</a> (CC-BY-SA)`,
@@ -224,13 +230,13 @@ async function setupMap(center) {
     marker = null;
     map = L.map(el, { zoomControl: true }).setView(center || [45.9, 7.75], center ? 12 : 9);
     const layers = baseLayers(L);
-    let chosen = 'Chiara';
+    let chosen = 'Outdoors';
     try {
       chosen = localStorage.getItem(LAYER_KEY) || chosen;
     } catch {
       /* ignorato */
     }
-    (layers[chosen] || layers.Chiara).addTo(map);
+    (layers[chosen] || layers.Outdoors).addTo(map);
     L.control.layers(layers, null, { position: 'topright' }).addTo(map);
     map.on('baselayerchange', (e) => {
       try {
