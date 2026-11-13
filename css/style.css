@@ -674,3 +674,18 @@ h1, h2, h3, .page-title, .summary-main, .total-num, .place-head .ss-cell b, .dl 
 .slr-mid { background: #8fa6d9; color: #0a1530; }
 .slr-light { background: #eaf4ff; color: #0a1530; }
 .pw-r.pw-light { background: #eaf4ff; color: #0a1530; font-weight: 700; border-radius: 6px; padding: 0 4px; }
+
+/* --- Scheda località: spaziatura e tutta la scheda cliccabile (13/11/2026) --- */
+.place-head, .place-head:has(.ss) { gap: 2px; padding: 10px 8px 8px 4px; }
+.place-head .star { width: 36px; font-size: 22px; }
+.place-head .ss { gap: 6px; }
+.place-head .ss-cell { min-width: 38px; }
+.place-head .ss-cell b { font-size: 19px; }
+.place-head .x-btn { width: 28px; margin-left: 0; }
+.place-title h2 { text-wrap: balance; }
+.place { position: relative; }
+.place-head .place-title { position: static; }
+.place-head .place-title::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+.place-head .star, .place-head .x-btn, .fc-days .fc-day { position: relative; z-index: 2; }
+.place:has(.place-title:active) { background: var(--bg-2); }
+.place-title:focus-visible::after { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius); }
