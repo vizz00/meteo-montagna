@@ -193,15 +193,22 @@ function placeMarker(lat, lon) {
 
 // Sfondi senza chiave: OpenStreetMap (anche in versione scura, invertita via CSS),
 // topografico (curve di livello) e satellite Esri.
-const LAYER_KEY = 'mm.mapLayer';
+const LAYER_KEY = 'mm.mapLayer3';
+const MAPBOX_TOKEN = 'pk.eyJ1Ijoidml6ejAwIiwiYSI6ImNtd2V3d3R3ZjAxeWwyenIyYnBxd2g0dTEifQ.5a9kSc5frG-Ir-3OlZShAg';
+const DOT = '#2f7de1'; // un solo colore per tutti i pallini (poi i preferiti saranno gialli)
 const OSM = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
 function baseLayers(L) {
   const osm = (className) =>
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: OSM, className });
   return {
-    Scura: osm('tiles-dark'),
+    // Stile Mapbox Outdoors (verde, curve di livello, impianti). Chiave pubblica: fatta per stare nei siti.
+    Outdoors: L.tileLayer(
+      `https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
+      { tileSize: 512, zoomOffset: -1, maxZoom: 20, attribution: '&copy; <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">Mapbox</a> &copy; OpenStreetMap' },
+    ),
     Chiara: osm(''),
+    Scura: osm('tiles-dark'),
     Topografica: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
       maxZoom: 17,
       attribution: `${OSM}, <a href="https://opentopomap.org" target="_blank" rel="noopener">OpenTopoMap</a> (CC-BY-SA)`,
@@ -223,13 +230,13 @@ async function setupMap(center) {
     marker = null;
     map = L.map(el, { zoomControl: true }).setView(center || [45.9, 7.75], center ? 12 : 9);
     const layers = baseLayers(L);
-    let chosen = 'Scura';
+    let chosen = 'Outdoors';
     try {
       chosen = localStorage.getItem(LAYER_KEY) || chosen;
     } catch {
       /* ignorato */
     }
-    (layers[chosen] || layers.Scura).addTo(map);
+    (layers[chosen] || layers.Outdoors).addTo(map);
     L.control.layers(layers, null, { position: 'topright' }).addTo(map);
     map.on('baselayerchange', (e) => {
       try {
@@ -238,36 +245,56 @@ async function setupMap(center) {
         /* ignorato */
       }
     });
+    // Pallini: tutti dello stesso colore. Un tocco sul pallino (o vicino) sceglie quel posto
+    // con il SUO nome, senza passare dal nome di frazioni vicine.
+    const dots = [];
+    const addDot = (item, onPick) => {
+      const dot = L.circleMarker([item.lat, item.lon], { radius: 7, color: '#ffffff', weight: 2, fillColor: DOT, fillOpacity: 0.9 })
+        .bindTooltip(item.name)
+        .addTo(map);
+      dot.on('click', (ev) => {
+        L.DomEvent.stopPropagation(ev);
+        onPick();
+      });
+      dots.push({ item, onPick });
+    };
     for (const p of PLACES) {
       if (sel?.id === p.id) continue;
-      L.circleMarker([p.lat, p.lon], { radius: 6, color: '#ffffff', weight: 2, fillColor: '#ffd166', fillOpacity: 0.9 })
-        .bindTooltip(p.name)
-        .addTo(map);
+      addDot(p, () => {
+        if (sel?.id) return; // in modifica il tocco serve a spostare il punto
+        location.hash = `#/posto/${p.id}`;
+      });
     }
-    // Località predefinite (non ancora nei tuoi posti): pallino azzurro, un tocco le sceglie.
+    // Località predefinite (non ancora nei tuoi posti): un tocco le sceglie.
     if (!sel?.id) {
       const near = (a, b) => Math.abs(a.lat - b.lat) < 0.03 && Math.abs(a.lon - b.lon) < 0.03;
       for (const pr of PRESETS) {
         if (PLACES.some((p) => near(p, pr))) continue;
-        const dot = L.circleMarker([pr.lat, pr.lon], { radius: 7, color: '#ffffff', weight: 2, fillColor: '#8fe3ff', fillOpacity: 0.85 })
-          .bindTooltip(pr.name)
-          .addTo(map);
-        dot.on('click', (ev) => {
-          L.DomEvent.stopPropagation(ev);
-          pick({ ...pr });
-        });
+        addDot(pr, () => pick({ ...pr }));
       }
     }
     if (sel) placeMarker(sel.lat, sel.lon);
-    map.on('click', (e) =>
-      pick({
+    map.on('click', (e) => {
+      // Se il tocco cade vicino a un pallino (entro 30 px) vale come tocco sul pallino.
+      const pt = map.latLngToContainerPoint(e.latlng);
+      let best = null;
+      let bestD = 30;
+      for (const d of dots) {
+        const dd = pt.distanceTo(map.latLngToContainerPoint([d.item.lat, d.item.lon]));
+        if (dd < bestD) {
+          bestD = dd;
+          best = d;
+        }
+      }
+      if (best && !sel?.id) return best.onPick();
+      return pick({
         lat: e.latlng.lat,
         lon: e.latlng.lng,
         id: sel?.id,
         name: sel?.id ? sel.name : undefined,
         single: sel?.id ? sel.single : false,
-      }),
-    );
+      });
+    });
   } catch {
     if (note) note.textContent = 'La mappa non si carica (sei senza rete?). Puoi comunque cercare per nome.';
   }
