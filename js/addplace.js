@@ -193,7 +193,8 @@ function placeMarker(lat, lon) {
 
 // Sfondi senza chiave: OpenStreetMap (anche in versione scura, invertita via CSS),
 // topografico (curve di livello) e satellite Esri.
-const LAYER_KEY = 'mm.mapLayer';
+const LAYER_KEY = 'mm.mapLayer2';
+const DOT = '#2f7de1'; // un solo colore per tutti i pallini (poi i preferiti saranno gialli)
 const OSM = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
 function baseLayers(L) {
@@ -223,13 +224,13 @@ async function setupMap(center) {
     marker = null;
     map = L.map(el, { zoomControl: true }).setView(center || [45.9, 7.75], center ? 12 : 9);
     const layers = baseLayers(L);
-    let chosen = 'Scura';
+    let chosen = 'Chiara';
     try {
       chosen = localStorage.getItem(LAYER_KEY) || chosen;
     } catch {
       /* ignorato */
     }
-    (layers[chosen] || layers.Scura).addTo(map);
+    (layers[chosen] || layers.Chiara).addTo(map);
     L.control.layers(layers, null, { position: 'topright' }).addTo(map);
     map.on('baselayerchange', (e) => {
       try {
@@ -240,7 +241,7 @@ async function setupMap(center) {
     });
     for (const p of PLACES) {
       if (sel?.id === p.id) continue;
-      L.circleMarker([p.lat, p.lon], { radius: 6, color: '#ffffff', weight: 2, fillColor: '#ffd166', fillOpacity: 0.9 })
+      L.circleMarker([p.lat, p.lon], { radius: 6, color: '#ffffff', weight: 2, fillColor: DOT, fillOpacity: 0.9 })
         .bindTooltip(p.name)
         .addTo(map);
     }
@@ -249,7 +250,7 @@ async function setupMap(center) {
       const near = (a, b) => Math.abs(a.lat - b.lat) < 0.03 && Math.abs(a.lon - b.lon) < 0.03;
       for (const pr of PRESETS) {
         if (PLACES.some((p) => near(p, pr))) continue;
-        const dot = L.circleMarker([pr.lat, pr.lon], { radius: 7, color: '#ffffff', weight: 2, fillColor: '#8fe3ff', fillOpacity: 0.85 })
+        const dot = L.circleMarker([pr.lat, pr.lon], { radius: 6, color: '#ffffff', weight: 2, fillColor: DOT, fillOpacity: 0.9 })
           .bindTooltip(pr.name)
           .addTo(map);
         dot.on('click', (ev) => {
