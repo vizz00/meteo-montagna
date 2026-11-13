@@ -239,36 +239,56 @@ async function setupMap(center) {
         /* ignorato */
       }
     });
+    // Pallini: tutti dello stesso colore. Un tocco sul pallino (o vicino) sceglie quel posto
+    // con il SUO nome, senza passare dal nome di frazioni vicine.
+    const dots = [];
+    const addDot = (item, onPick) => {
+      const dot = L.circleMarker([item.lat, item.lon], { radius: 7, color: '#ffffff', weight: 2, fillColor: DOT, fillOpacity: 0.9 })
+        .bindTooltip(item.name)
+        .addTo(map);
+      dot.on('click', (ev) => {
+        L.DomEvent.stopPropagation(ev);
+        onPick();
+      });
+      dots.push({ item, onPick });
+    };
     for (const p of PLACES) {
       if (sel?.id === p.id) continue;
-      L.circleMarker([p.lat, p.lon], { radius: 6, color: '#ffffff', weight: 2, fillColor: DOT, fillOpacity: 0.9 })
-        .bindTooltip(p.name)
-        .addTo(map);
+      addDot(p, () => {
+        if (sel?.id) return; // in modifica il tocco serve a spostare il punto
+        location.hash = `#/posto/${p.id}`;
+      });
     }
-    // Località predefinite (non ancora nei tuoi posti): pallino azzurro, un tocco le sceglie.
+    // Località predefinite (non ancora nei tuoi posti): un tocco le sceglie.
     if (!sel?.id) {
       const near = (a, b) => Math.abs(a.lat - b.lat) < 0.03 && Math.abs(a.lon - b.lon) < 0.03;
       for (const pr of PRESETS) {
         if (PLACES.some((p) => near(p, pr))) continue;
-        const dot = L.circleMarker([pr.lat, pr.lon], { radius: 6, color: '#ffffff', weight: 2, fillColor: DOT, fillOpacity: 0.9 })
-          .bindTooltip(pr.name)
-          .addTo(map);
-        dot.on('click', (ev) => {
-          L.DomEvent.stopPropagation(ev);
-          pick({ ...pr });
-        });
+        addDot(pr, () => pick({ ...pr }));
       }
     }
     if (sel) placeMarker(sel.lat, sel.lon);
-    map.on('click', (e) =>
-      pick({
+    map.on('click', (e) => {
+      // Se il tocco cade vicino a un pallino (entro 30 px) vale come tocco sul pallino.
+      const pt = map.latLngToContainerPoint(e.latlng);
+      let best = null;
+      let bestD = 30;
+      for (const d of dots) {
+        const dd = pt.distanceTo(map.latLngToContainerPoint([d.item.lat, d.item.lon]));
+        if (dd < bestD) {
+          bestD = dd;
+          best = d;
+        }
+      }
+      if (best && !sel?.id) return best.onPick();
+      return pick({
         lat: e.latlng.lat,
         lon: e.latlng.lng,
         id: sel?.id,
         name: sel?.id ? sel.name : undefined,
         single: sel?.id ? sel.single : false,
-      }),
-    );
+      });
+    });
   } catch {
     if (note) note.textContent = 'La mappa non si carica (sei senza rete?). Puoi comunque cercare per nome.';
   }
